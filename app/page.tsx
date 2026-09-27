@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import WalletButton, { type WalletState } from "./WalletButton";
@@ -213,7 +213,6 @@ export default function Home() {
     nextWallet: WalletState,
   ) {
     setWallet(nextWallet);
-    setSimulated(false);
   }
 
   function handleSimulate() {
@@ -300,14 +299,14 @@ export default function Home() {
             {apiStatus === "connected" && (
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-300">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                LIVE · Binance Web3 API
+                LIVE Â· Binance Web3 API
               </div>
             )}
 
             {apiStatus === "fallback" && (
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/[0.08] px-3 py-1.5 text-xs font-medium text-amber-300">
                 <span className="h-2 w-2 rounded-full bg-amber-300" />
-                DEMO · Binance RWA API unavailable in
+                DEMO Â· Binance RWA API unavailable in
                 this environment
               </div>
             )}
@@ -393,7 +392,7 @@ export default function Home() {
                 </div>
 
                 <div className="text-sm text-zinc-500">
-                  {selected.name} ·{" "}
+                  {selected.name} Â·{" "}
                   {selected.provider}
                 </div>
               </div>
@@ -445,7 +444,7 @@ export default function Home() {
             {selected.market !== "OPEN" && (
               <div className="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5">
                 <div className="flex gap-3">
-                  <div className="text-xl">⚠</div>
+                  <div className="text-xl">âš </div>
 
                   <div>
                     <div className="font-semibold text-amber-200">
@@ -646,7 +645,7 @@ export default function Home() {
                   disabled
                   className="mt-4 w-full cursor-not-allowed rounded-xl border border-white/10 bg-white/70 py-3 font-bold text-black opacity-70"
                 >
-                  Execute Trade · Disabled in MVP
+                  Execute Trade Â· Disabled in MVP
                 </button>
 
                 <div className="mt-2 text-center text-xs text-zinc-600">
@@ -658,7 +657,7 @@ export default function Home() {
             )}
 
             <div className="mt-6 text-center text-xs text-zinc-600">
-              StockShield MVP · Data mode is
+              StockShield MVP Â· Data mode is
               reported transparently by the
               StockShield API
             </div>

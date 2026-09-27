@@ -14,9 +14,11 @@ type TradeSafetyCheckProps = {
   walletConnected: boolean;
   bnbBalance: number;
   marketStatus: string;
+  marketDataAvailable?: boolean;
   deviation: number;
   referenceAvailable?: boolean;
   liquidity: number;
+  liquidityDataAvailable?: boolean;
   slippage: number;
   priceImpact: number;
 };
@@ -25,9 +27,11 @@ export default function TradeSafetyCheck({
   walletConnected,
   bnbBalance,
   marketStatus,
+  marketDataAvailable = true,
   deviation,
   referenceAvailable = true,
   liquidity,
+  liquidityDataAvailable = true,
   slippage,
   priceImpact,
 }: TradeSafetyCheckProps) {
@@ -61,15 +65,28 @@ export default function TradeSafetyCheck({
           : `${bnbBalance.toFixed(6)} BNB available for gas`,
   });
 
-  checks.push({
-    label: "Underlying market",
-    status: marketStatus === "OPEN" ? "PASS" : "CAUTION",
-    scored: true,
-    message:
-      marketStatus === "OPEN"
-        ? "Underlying market is open"
-        : "Underlying market is closed — reference pricing may be less current",
-  });
+  if (!marketDataAvailable) {
+    checks.push({
+      label: "Underlying market",
+      status: "NOT SCORED",
+      scored: false,
+      message:
+        "Live market-status data unavailable — excluded from the safety score",
+    });
+  } else {
+    checks.push({
+      label: "Underlying market",
+      status:
+        marketStatus === "OPEN"
+          ? "PASS"
+          : "CAUTION",
+      scored: true,
+      message:
+        marketStatus === "OPEN"
+          ? "Underlying market is open"
+          : "Underlying market is closed — reference pricing may be less current",
+    });
+  }
 
   if (!referenceAvailable) {
     checks.push({
@@ -98,25 +115,35 @@ export default function TradeSafetyCheck({
     });
   }
 
-  checks.push({
-    label: "Liquidity",
-    status:
-      liquidity < 100_000
-        ? "BLOCK"
-        : liquidity < 500_000
-          ? "CAUTION"
-          : "PASS",
-    scored: true,
-    message:
-      liquidity < 100_000
-        ? `$${formatNumber(liquidity)} liquidity is below the minimum threshold`
-        : liquidity < 500_000
-          ? `$${formatNumber(liquidity)} liquidity is limited`
-          : `$${formatNumber(liquidity)} liquidity is within the MVP threshold`,
-  });
+  if (!liquidityDataAvailable) {
+    checks.push({
+      label: "Liquidity",
+      status: "NOT SCORED",
+      scored: false,
+      message:
+        "Live comparable liquidity data unavailable — excluded from the safety score",
+    });
+  } else {
+    checks.push({
+      label: "Liquidity",
+      status:
+        liquidity < 100_000
+          ? "BLOCK"
+          : liquidity < 500_000
+            ? "CAUTION"
+            : "PASS",
+      scored: true,
+      message:
+        liquidity < 100_000
+          ? `$${formatNumber(liquidity)} liquidity is below the minimum threshold`
+          : liquidity < 500_000
+            ? `$${formatNumber(liquidity)} liquidity is limited`
+            : `$${formatNumber(liquidity)} liquidity is within the MVP threshold`,
+    });
+  }
 
   checks.push({
-    label: "Estimated slippage",
+    label: "Estimated slippage (MVP)",
     status:
       slippage >= 3
         ? "BLOCK"
@@ -126,14 +153,14 @@ export default function TradeSafetyCheck({
     scored: true,
     message:
       slippage >= 3
-        ? `${slippage.toFixed(2)}% estimated slippage exceeds the safety threshold`
+        ? `${slippage.toFixed(2)}% MVP slippage estimate exceeds the safety threshold`
         : slippage >= 1
-          ? `${slippage.toFixed(2)}% estimated slippage deserves review`
-          : `${slippage.toFixed(2)}% estimated slippage is within the MVP threshold`,
+          ? `${slippage.toFixed(2)}% MVP slippage estimate deserves review`
+          : `${slippage.toFixed(2)}% MVP slippage estimate is within the threshold`,
   });
 
   checks.push({
-    label: "Price impact",
+    label: "Live market impact",
     status:
       priceImpact >= 3
         ? "BLOCK"
@@ -143,10 +170,10 @@ export default function TradeSafetyCheck({
     scored: true,
     message:
       priceImpact >= 3
-        ? `${priceImpact.toFixed(2)}% price impact exceeds the safety threshold`
+        ? `${priceImpact.toFixed(2)}% live market impact exceeds the safety threshold`
         : priceImpact >= 1
-          ? `${priceImpact.toFixed(2)}% price impact deserves review`
-          : `${priceImpact.toFixed(6)}% price impact is within the MVP threshold`,
+          ? `${priceImpact.toFixed(2)}% live market impact deserves review`
+          : `${priceImpact.toFixed(6)}% live on-chain market impact is within the threshold`,
   });
 
   const scoredChecks = checks.filter(
@@ -181,10 +208,10 @@ export default function TradeSafetyCheck({
 
   const overallDescription =
     overallStatus === "PASS"
-      ? "No blocking conditions were detected by the current StockShield rules."
+      ? "No blocking conditions were detected by the scored StockShield checks."
       : overallStatus === "CAUTION"
-        ? "No blocking condition was detected, but one or more conditions deserve attention."
-        : "One or more safety conditions must be resolved before execution.";
+        ? "No blocking condition was detected, but one or more scored conditions deserve attention."
+        : "One or more scored safety conditions must be resolved before execution.";
 
   const overallClass =
     overallStatus === "PASS"
@@ -262,12 +289,12 @@ export default function TradeSafetyCheck({
         <span className="font-medium text-zinc-300">
           Transparent MVP rules:
         </span>{" "}
-        StockShield checks wallet connection, gas availability,
-        underlying market status, available reference-price deviation,
-        liquidity, estimated slippage and price impact before execution.
-        Unavailable reference data is excluded from scoring. These
-        heuristic checks provide execution context and do not guarantee
-        trade outcomes.
+        StockShield scores only data that is available for the
+        relevant check. Demo fallback market, reference and liquidity
+        values are excluded from scoring. Slippage is explicitly
+        identified as an MVP estimate. Market impact comes from the
+        live on-chain quote. These heuristic checks provide execution
+        context and do not guarantee trade outcomes.
       </div>
     </div>
   );

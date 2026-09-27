@@ -1104,6 +1104,9 @@ export default function Home() {
                   marketStatus={
                     selected.market
                   }
+                  marketDataAvailable={
+                    referenceIsLive
+                  }
                   deviation={
                     safetyDeviation
                   }
@@ -1112,6 +1115,9 @@ export default function Home() {
                   }
                   liquidity={
                     selected.liquidity
+                  }
+                  liquidityDataAvailable={
+                    referenceIsLive
                   }
                   slippage={
                     selected.slippage
@@ -1210,3 +1216,4 @@ function Row({
     </div>
   );
 }
+

@@ -19,41 +19,48 @@ export async function GET() {
     }
 
     const timestamp = new Date().toISOString();
-
     const method = "GET";
-    const requestPath =
-      "/api/v1/dex/market/rwa/search?keyword=NVDA";
+
+    // Path endpoint Binance
+    const apiPath = "/api/v1/dex/market/rwa/search";
+    const query = "keyword=NVDA";
+
+    // IMPORTANT:
+    // Binance requires /build inside the SIGNED request path.
+    const signedRequestPath = `/build${apiPath}?${query}`;
 
     const body = "";
 
     const preHash =
       timestamp +
       method +
-      requestPath +
+      signedRequestPath +
       body;
 
     const signature = crypto
       .createHmac("sha256", secretKey)
-      .update(preHash)
+      .update(preHash, "utf8")
       .digest("base64");
 
-    const response = await fetch(
-      `https://web3.binance.com/build${requestPath}`,
-      {
-        method,
-        headers: {
-          "X-OC-APIKEY": apiKey,
-          "X-OC-TIMESTAMP": timestamp,
-          "X-OC-SIGN": signature,
-          "X-OC-RECV-WINDOW": "60000",
-        },
-        cache: "no-store",
-      }
-    );
+    const url =
+      `https://web3.binance.com/build${apiPath}?${query}`;
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "X-OC-APIKEY": apiKey,
+        "X-OC-TIMESTAMP": timestamp,
+        "X-OC-SIGN": signature,
+        "X-OC-RECV-WINDOW": "60000",
+      },
+      cache: "no-store",
+    });
 
     const data = await response.json();
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      status: response.status,
+    });
   } catch (error) {
     console.error("StockShield RWA error:", error);
 

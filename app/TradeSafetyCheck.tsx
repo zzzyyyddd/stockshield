@@ -29,43 +29,45 @@ export default function TradeSafetyCheck({
 }: TradeSafetyCheckProps) {
   const checks: SafetyItem[] = [];
 
+  // 1. Wallet check
   checks.push({
-    label: "Wallet",
+    label: "Wallet connection",
     status: walletConnected ? "PASS" : "BLOCK",
     message: walletConnected
-      ? "Wallet connected"
-      : "Connect a wallet before trading",
+      ? "Wallet connected and ready"
+      : "Connect a wallet before continuing",
   });
 
+  // 2. Gas balance check
   checks.push({
-    label: "Gas balance",
-    status:
-      !walletConnected
+    label: "BNB gas balance",
+    status: !walletConnected
+      ? "BLOCK"
+      : bnbBalance <= 0
         ? "BLOCK"
-        : bnbBalance <= 0
-          ? "BLOCK"
-          : bnbBalance < 0.0005
-            ? "CAUTION"
-            : "PASS",
-    message:
-      !walletConnected
-        ? "Wallet balance unavailable"
-        : bnbBalance <= 0
-          ? "No BNB available for network gas"
-          : bnbBalance < 0.0005
-            ? "BNB gas balance is very low"
-            : "BNB available for network gas",
+        : bnbBalance < 0.0005
+          ? "CAUTION"
+          : "PASS",
+    message: !walletConnected
+      ? "Gas balance unavailable until wallet is connected"
+      : bnbBalance <= 0
+        ? "No BNB available for network gas"
+        : bnbBalance < 0.0005
+          ? `${bnbBalance.toFixed(6)} BNB — gas balance is very low`
+          : `${bnbBalance.toFixed(6)} BNB available for gas`,
   });
 
+  // 3. Underlying market check
   checks.push({
-    label: "Market",
+    label: "Underlying market",
     status: marketStatus === "OPEN" ? "PASS" : "CAUTION",
     message:
       marketStatus === "OPEN"
         ? "Underlying market is open"
-        : "Underlying market is closed",
+        : "Underlying market is closed — reference pricing may be less current",
   });
 
+  // 4. Price deviation check
   checks.push({
     label: "Price deviation",
     status:
@@ -76,12 +78,13 @@ export default function TradeSafetyCheck({
           : "PASS",
     message:
       deviation >= 3
-        ? `${deviation.toFixed(2)}% deviation is unusually high`
+        ? `${deviation.toFixed(2)}% deviation exceeds the 3% safety threshold`
         : deviation >= 1
-          ? `${deviation.toFixed(2)}% deviation needs attention`
-          : `${deviation.toFixed(2)}% deviation`,
+          ? `${deviation.toFixed(2)}% deviation deserves additional review`
+          : `${deviation.toFixed(2)}% deviation is within the MVP threshold`,
   });
 
+  // 5. Liquidity check
   checks.push({
     label: "Liquidity",
     status:
@@ -92,14 +95,15 @@ export default function TradeSafetyCheck({
           : "PASS",
     message:
       liquidity < 100_000
-        ? "Liquidity is very low"
+        ? `$${formatNumber(liquidity)} liquidity is below the minimum threshold`
         : liquidity < 500_000
-          ? "Liquidity is limited"
-          : "Liquidity is healthy",
+          ? `$${formatNumber(liquidity)} liquidity is limited`
+          : `$${formatNumber(liquidity)} liquidity is within the MVP threshold`,
   });
 
+  // 6. Slippage check
   checks.push({
-    label: "Slippage",
+    label: "Estimated slippage",
     status:
       slippage >= 3
         ? "BLOCK"
@@ -108,12 +112,13 @@ export default function TradeSafetyCheck({
           : "PASS",
     message:
       slippage >= 3
-        ? `${slippage.toFixed(2)}% estimated slippage is high`
+        ? `${slippage.toFixed(2)}% estimated slippage exceeds the safety threshold`
         : slippage >= 1
-          ? `${slippage.toFixed(2)}% estimated slippage needs attention`
-          : `${slippage.toFixed(2)}% estimated slippage`,
+          ? `${slippage.toFixed(2)}% estimated slippage deserves review`
+          : `${slippage.toFixed(2)}% estimated slippage is within the MVP threshold`,
   });
 
+  // 7. Price impact check
   checks.push({
     label: "Price impact",
     status:
@@ -124,14 +129,26 @@ export default function TradeSafetyCheck({
           : "PASS",
     message:
       priceImpact >= 3
-        ? `${priceImpact.toFixed(2)}% price impact is high`
+        ? `${priceImpact.toFixed(2)}% price impact exceeds the safety threshold`
         : priceImpact >= 1
-          ? `${priceImpact.toFixed(2)}% price impact needs attention`
-          : `${priceImpact.toFixed(2)}% price impact`,
+          ? `${priceImpact.toFixed(2)}% price impact deserves review`
+          : `${priceImpact.toFixed(2)}% price impact is within the MVP threshold`,
   });
 
-  const hasBlock = checks.some((check) => check.status === "BLOCK");
-  const hasCaution = checks.some((check) => check.status === "CAUTION");
+  const passCount = checks.filter(
+    (check) => check.status === "PASS",
+  ).length;
+
+  const cautionCount = checks.filter(
+    (check) => check.status === "CAUTION",
+  ).length;
+
+  const blockCount = checks.filter(
+    (check) => check.status === "BLOCK",
+  ).length;
+
+  const hasBlock = blockCount > 0;
+  const hasCaution = cautionCount > 0;
 
   const overallStatus: SafetyLevel = hasBlock
     ? "BLOCK"
@@ -141,10 +158,17 @@ export default function TradeSafetyCheck({
 
   const overallText =
     overallStatus === "PASS"
-      ? "Checks passed"
+      ? "Pre-trade checks passed"
       : overallStatus === "CAUTION"
         ? "Review before trading"
         : "Trade blocked by safety checks";
+
+  const overallDescription =
+    overallStatus === "PASS"
+      ? "No blocking conditions were detected by the current StockShield rules."
+      : overallStatus === "CAUTION"
+        ? "No blocking condition was detected, but one or more conditions deserve attention."
+        : "One or more safety conditions must be resolved before execution.";
 
   const overallClass =
     overallStatus === "PASS"
@@ -155,14 +179,18 @@ export default function TradeSafetyCheck({
 
   return (
     <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
-            Pre-trade safety
+            StockShield Safety Engine
           </div>
 
           <div className="mt-2 text-lg font-bold">
             {overallText}
+          </div>
+
+          <div className="mt-1 max-w-md text-xs leading-5 text-zinc-500">
+            {overallDescription}
           </div>
         </div>
 
@@ -171,6 +199,26 @@ export default function TradeSafetyCheck({
         >
           {overallStatus}
         </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        <SummaryBox
+          label="PASS"
+          value={passCount}
+          className="text-emerald-300"
+        />
+
+        <SummaryBox
+          label="CAUTION"
+          value={cautionCount}
+          className="text-amber-300"
+        />
+
+        <SummaryBox
+          label="BLOCK"
+          value={blockCount}
+          className="text-red-300"
+        />
       </div>
 
       <div className="mt-5 space-y-3">
@@ -184,7 +232,7 @@ export default function TradeSafetyCheck({
                 {check.label}
               </div>
 
-              <div className="mt-1 text-xs text-zinc-500">
+              <div className="mt-1 text-xs leading-5 text-zinc-500">
                 {check.message}
               </div>
             </div>
@@ -195,9 +243,35 @@ export default function TradeSafetyCheck({
       </div>
 
       <div className="mt-5 rounded-xl border border-white/5 bg-white/[0.025] p-3 text-xs leading-5 text-zinc-500">
-        StockShield uses transparent heuristic thresholds for this MVP.
-        These checks provide execution context and do not guarantee trade
-        outcomes.
+        <span className="font-medium text-zinc-300">
+          Transparent MVP rules:
+        </span>{" "}
+        StockShield checks wallet connection, gas availability, underlying
+        market status, price deviation, liquidity, estimated slippage and
+        price impact before execution. These heuristic checks provide
+        execution context and do not guarantee trade outcomes.
+      </div>
+    </div>
+  );
+}
+
+function SummaryBox({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: number;
+  className: string;
+}) {
+  return (
+    <div className="rounded-xl border border-white/5 bg-white/[0.025] p-3 text-center">
+      <div className={`text-lg font-bold ${className}`}>
+        {value}
+      </div>
+
+      <div className="mt-1 text-[10px] font-medium tracking-wide text-zinc-500">
+        {label}
       </div>
     </div>
   );
@@ -206,10 +280,10 @@ export default function TradeSafetyCheck({
 function StatusBadge({ status }: { status: SafetyLevel }) {
   const className =
     status === "PASS"
-      ? "bg-emerald-400/10 text-emerald-300"
+      ? "border border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
       : status === "CAUTION"
-        ? "bg-amber-400/10 text-amber-300"
-        : "bg-red-400/10 text-red-300";
+        ? "border border-amber-400/20 bg-amber-400/10 text-amber-300"
+        : "border border-red-400/20 bg-red-400/10 text-red-300";
 
   return (
     <span
@@ -218,4 +292,10 @@ function StatusBadge({ status }: { status: SafetyLevel }) {
       {status}
     </span>
   );
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+  }).format(value);
 }

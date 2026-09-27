@@ -17,7 +17,7 @@ type Stock = {
   risk: string;
 };
 
-const stocks: Stock[] = [
+const demoStocks: Stock[] = [
   {
     symbol: "NVDA",
     name: "NVIDIA",
@@ -64,8 +64,19 @@ const stocks: Stock[] = [
 
 type ApiStatus = "checking" | "connected" | "fallback";
 
+type ApiStock = {
+  symbol?: string;
+  name?: string;
+  price?: number;
+  referencePrice?: number;
+  deviation?: number;
+  liquidity?: number;
+  marketStatus?: string;
+};
+
 export default function Home() {
-  const [selected, setSelected] = useState<Stock>(stocks[0]);
+  const [stocks, setStocks] = useState<Stock[]>(demoStocks);
+  const [selected, setSelected] = useState<Stock>(demoStocks[0]);
   const [search, setSearch] = useState("");
   const [amount, setAmount] = useState("20");
   const [simulated, setSimulated] = useState(false);
@@ -74,20 +85,71 @@ export default function Home() {
   useEffect(() => {
     let active = true;
 
-    async function checkBinanceApi() {
+    async function loadStockData() {
       try {
         const response = await fetch("/api/rwa", {
           cache: "no-store",
         });
 
-        const data = await response.json();
+        const result = await response.json();
 
         if (!active) return;
 
-        if (response.ok && data && data.success !== false) {
+        if (!response.ok || result?.success === false) {
+          setApiStatus("fallback");
+          return;
+        }
+
+        if (result?.mode === "live") {
           setApiStatus("connected");
         } else {
           setApiStatus("fallback");
+        }
+
+        if (!Array.isArray(result?.data)) {
+          return;
+        }
+
+        const mappedStocks: Stock[] = result.data
+          .filter(
+            (item: ApiStock) =>
+              item &&
+              typeof item.symbol === "string" &&
+              typeof item.name === "string" &&
+              typeof item.price === "number",
+          )
+          .map((item: ApiStock) => {
+            const original = demoStocks.find(
+              (stock) => stock.symbol === item.symbol,
+            );
+
+            const liquidity =
+              typeof item.liquidity === "number"
+                ? item.liquidity >= 1_000_000
+                  ? `$${(item.liquidity / 1_000_000).toFixed(2)}M`
+                  : `$${(item.liquidity / 1_000).toFixed(0)}K`
+                : original?.liquidity ?? "N/A";
+
+            return {
+              symbol: item.symbol!,
+              name: item.name!,
+              token: original?.token ?? `${item.symbol}x`,
+              provider: original?.provider ?? "Tokenized Stock",
+              price: item.price!,
+              reference:
+                item.referencePrice ?? original?.reference ?? item.price!,
+              gap: item.deviation ?? original?.gap ?? 0,
+              liquidity,
+              slippage: original?.slippage ?? "N/A",
+              impact: original?.impact ?? "N/A",
+              market: item.marketStatus ?? original?.market ?? "UNKNOWN",
+              risk: original?.risk ?? "UNKNOWN",
+            };
+          });
+
+        if (mappedStocks.length > 0) {
+          setStocks(mappedStocks);
+          setSelected(mappedStocks[0]);
         }
       } catch {
         if (active) {
@@ -96,7 +158,7 @@ export default function Home() {
       }
     }
 
-    checkBinanceApi();
+    loadStockData();
 
     return () => {
       active = false;
@@ -172,14 +234,14 @@ export default function Home() {
             {apiStatus === "connected" && (
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-300">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                Binance Web3 API connected · Demo values shown until mapping
+                LIVE · Binance Web3 API
               </div>
             )}
 
             {apiStatus === "fallback" && (
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/[0.08] px-3 py-1.5 text-xs font-medium text-amber-300">
                 <span className="h-2 w-2 rounded-full bg-amber-300" />
-                Demo data · Binance API unavailable from this environment
+                DEMO · Binance RWA API unavailable in this environment
               </div>
             )}
           </div>
@@ -258,8 +320,11 @@ export default function Home() {
                 <div className="text-3xl font-semibold">
                   ${selected.price.toFixed(2)}
                 </div>
+
                 <div className="mt-1 text-xs text-zinc-500">
-                  Demo on-chain price
+                  {apiStatus === "connected"
+                    ? "Live on-chain price"
+                    : "Demo on-chain price"}
                 </div>
               </div>
             </div>
@@ -269,29 +334,40 @@ export default function Home() {
                 label="Reference price"
                 value={`$${selected.reference.toFixed(2)}`}
               />
+
               <Metric
                 label="Price deviation"
                 value={`+${selected.gap.toFixed(2)}%`}
               />
+
               <Metric label="Liquidity" value={selected.liquidity} />
-              <Metric label="Market" value={selected.market} warning />
+
+              <Metric
+                label="Market"
+                value={selected.market}
+                warning={selected.market === "CLOSED"}
+              />
             </div>
 
-            <div className="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5">
-              <div className="flex gap-3">
-                <div className="text-xl">⚠</div>
-                <div>
-                  <div className="font-semibold text-amber-200">
-                    Underlying market is closed
+            {selected.market === "CLOSED" && (
+              <div className="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5">
+                <div className="flex gap-3">
+                  <div className="text-xl">⚠</div>
+
+                  <div>
+                    <div className="font-semibold text-amber-200">
+                      Underlying market is closed
+                    </div>
+
+                    <p className="mt-1 text-sm leading-6 text-zinc-400">
+                      The token can continue trading on-chain while the
+                      underlying market is closed. Reference pricing may be less
+                      current until the market reopens.
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm leading-6 text-zinc-400">
-                    The token can continue trading on-chain while the
-                    underlying market is closed. Reference pricing may be less
-                    current until the market reopens.
-                  </p>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="grid gap-6 md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
@@ -313,7 +389,10 @@ export default function Home() {
                 </div>
 
                 <div className="mt-6 space-y-3 text-sm">
-                  <Row label="Estimated slippage" value={selected.slippage} />
+                  <Row
+                    label="Estimated slippage"
+                    value={selected.slippage}
+                  />
                   <Row label="Price impact" value={selected.impact} />
                   <Row label="Network" value="BNB Smart Chain" />
                 </div>
@@ -326,6 +405,7 @@ export default function Home() {
 
                 <div className="mt-4 flex items-center rounded-xl border border-white/10 bg-white/[0.03] px-4">
                   <span className="text-zinc-500">$</span>
+
                   <input
                     value={amount}
                     onChange={(e) => {
@@ -335,6 +415,7 @@ export default function Home() {
                     type="number"
                     className="w-full bg-transparent px-2 py-3 text-lg font-semibold outline-none"
                   />
+
                   <span className="text-sm text-zinc-400">USDT</span>
                 </div>
 
@@ -356,10 +437,12 @@ export default function Home() {
                         label="You pay"
                         value={`$${amount || "0"} USDT`}
                       />
+
                       <Row
                         label="Estimated receive"
                         value={`${receive} ${selected.token}`}
                       />
+
                       <Row label="Slippage" value={selected.slippage} />
                       <Row label="Price impact" value={selected.impact} />
                     </div>
@@ -373,8 +456,8 @@ export default function Home() {
             </div>
 
             <div className="mt-6 text-center text-xs text-zinc-600">
-              StockShield MVP · Live data replaces demo values only after API
-              response validation
+              StockShield MVP · Data mode is reported transparently by the
+              StockShield API
             </div>
           </div>
         </div>
@@ -395,6 +478,7 @@ function Metric({
   return (
     <div className="rounded-2xl border border-white/5 bg-white/[0.025] p-4">
       <div className="text-xs text-zinc-500">{label}</div>
+
       <div
         className={`mt-2 font-semibold ${
           warning ? "text-amber-300" : "text-white"

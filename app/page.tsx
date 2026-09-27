@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import WalletButton from "./WalletButton";
+import WalletButton, { type WalletState } from "./WalletButton";
+import TradeSafetyCheck from "./TradeSafetyCheck";
 
 type Stock = {
   symbol: string;
@@ -11,9 +12,9 @@ type Stock = {
   price: number;
   reference: number;
   gap: number;
-  liquidity: string;
-  slippage: string;
-  impact: string;
+  liquidity: number;
+  slippage: number;
+  impact: number;
   market: string;
   risk: string;
 };
@@ -27,9 +28,9 @@ const demoStocks: Stock[] = [
     price: 184.8,
     reference: 183.9,
     gap: 0.49,
-    liquidity: "$1.24M",
-    slippage: "0.18%",
-    impact: "0.12%",
+    liquidity: 1_240_000,
+    slippage: 0.18,
+    impact: 0.12,
     market: "CLOSED",
     risk: "MEDIUM",
   },
@@ -41,9 +42,9 @@ const demoStocks: Stock[] = [
     price: 421.2,
     reference: 420.81,
     gap: 0.09,
-    liquidity: "$2.08M",
-    slippage: "0.11%",
-    impact: "0.08%",
+    liquidity: 980_000,
+    slippage: 0.11,
+    impact: 0.08,
     market: "CLOSED",
     risk: "LOW",
   },
@@ -53,11 +54,11 @@ const demoStocks: Stock[] = [
     token: "AAPLx",
     provider: "Tokenized Stock",
     price: 291.42,
-    reference: 291.31,
-    gap: 0.04,
-    liquidity: "$1.67M",
-    slippage: "0.09%",
-    impact: "0.06%",
+    reference: 290.95,
+    gap: 0.16,
+    liquidity: 1_510_000,
+    slippage: 0.09,
+    impact: 0.06,
     market: "CLOSED",
     risk: "LOW",
   },
@@ -75,13 +76,23 @@ type ApiStock = {
   marketStatus?: string;
 };
 
+const emptyWallet: WalletState = {
+  connected: false,
+  address: null,
+  bnbBalance: 0,
+  chainId: null,
+};
+
 export default function Home() {
   const [stocks, setStocks] = useState<Stock[]>(demoStocks);
   const [selected, setSelected] = useState<Stock>(demoStocks[0]);
   const [search, setSearch] = useState("");
   const [amount, setAmount] = useState("20");
   const [simulated, setSimulated] = useState(false);
-  const [apiStatus, setApiStatus] = useState<ApiStatus>("checking");
+  const [apiStatus, setApiStatus] =
+    useState<ApiStatus>("checking");
+  const [wallet, setWallet] =
+    useState<WalletState>(emptyWallet);
 
   useEffect(() => {
     let active = true;
@@ -101,11 +112,11 @@ export default function Home() {
           return;
         }
 
-        if (result?.mode === "live") {
-          setApiStatus("connected");
-        } else {
-          setApiStatus("fallback");
-        }
+        setApiStatus(
+          result?.mode === "live"
+            ? "connected"
+            : "fallback",
+        );
 
         if (!Array.isArray(result?.data)) {
           return;
@@ -124,27 +135,38 @@ export default function Home() {
               (stock) => stock.symbol === item.symbol,
             );
 
-            const liquidity =
-              typeof item.liquidity === "number"
-                ? item.liquidity >= 1_000_000
-                  ? `$${(item.liquidity / 1_000_000).toFixed(2)}M`
-                  : `$${(item.liquidity / 1_000).toFixed(0)}K`
-                : original?.liquidity ?? "N/A";
-
             return {
               symbol: item.symbol!,
               name: item.name!,
-              token: original?.token ?? `${item.symbol}x`,
-              provider: original?.provider ?? "Tokenized Stock",
+              token:
+                original?.token ??
+                `${item.symbol}x`,
+              provider:
+                original?.provider ??
+                "Tokenized Stock",
               price: item.price!,
               reference:
-                item.referencePrice ?? original?.reference ?? item.price!,
-              gap: item.deviation ?? original?.gap ?? 0,
-              liquidity,
-              slippage: original?.slippage ?? "N/A",
-              impact: original?.impact ?? "N/A",
-              market: item.marketStatus ?? original?.market ?? "UNKNOWN",
-              risk: original?.risk ?? "UNKNOWN",
+                item.referencePrice ??
+                original?.reference ??
+                item.price!,
+              gap:
+                item.deviation ??
+                original?.gap ??
+                0,
+              liquidity:
+                item.liquidity ??
+                original?.liquidity ??
+                0,
+              slippage:
+                original?.slippage ?? 0,
+              impact:
+                original?.impact ?? 0,
+              market:
+                item.marketStatus ??
+                original?.market ??
+                "UNKNOWN",
+              risk:
+                original?.risk ?? "UNKNOWN",
             };
           });
 
@@ -159,7 +181,7 @@ export default function Home() {
       }
     }
 
-    loadStockData();
+    void loadStockData();
 
     return () => {
       active = false;
@@ -168,14 +190,51 @@ export default function Home() {
 
   const filtered = stocks.filter(
     (stock) =>
-      stock.symbol.toLowerCase().includes(search.toLowerCase()) ||
-      stock.name.toLowerCase().includes(search.toLowerCase()),
+      stock.symbol
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      stock.name
+        .toLowerCase()
+        .includes(search.toLowerCase()),
   );
 
   const receive =
     Number(amount || 0) > 0
-      ? (Number(amount) / selected.price).toFixed(6)
+      ? (
+          Number(amount) /
+          selected.price
+        ).toFixed(6)
       : "0.000000";
+
+  const correctNetwork =
+    wallet.chainId === 56;
+
+  function handleWalletChange(
+    nextWallet: WalletState,
+  ) {
+    setWallet(nextWallet);
+    setSimulated(false);
+  }
+
+  function handleSimulate() {
+    setSimulated(true);
+  }
+
+  function formatLiquidity(value: number) {
+    if (value >= 1_000_000) {
+      return `$${(
+        value / 1_000_000
+      ).toFixed(2)}M`;
+    }
+
+    if (value >= 1_000) {
+      return `$${(
+        value / 1_000
+      ).toFixed(0)}K`;
+    }
+
+    return `$${value.toFixed(0)}`;
+  }
 
   return (
     <main className="min-h-screen bg-[#07090d] text-white">
@@ -197,12 +256,16 @@ export default function Home() {
           </div>
 
           <div className="hidden items-center gap-8 text-sm text-zinc-400 md:flex">
-            <button className="text-white">Discover</button>
+            <button className="text-white">
+              Discover
+            </button>
             <button>Check</button>
             <button>Portfolio</button>
           </div>
 
-          <WalletButton />
+          <WalletButton
+            onWalletChange={handleWalletChange}
+          />
         </div>
       </nav>
 
@@ -214,12 +277,16 @@ export default function Home() {
 
           <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
             Know before
-            <span className="text-emerald-400"> you trade.</span>
+            <span className="text-emerald-400">
+              {" "}
+              you trade.
+            </span>
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400 md:text-lg">
-            Check price deviation, market status, liquidity, slippage and
-            transaction risk before trading tokenized stocks on-chain.
+            Check price deviation, market status,
+            liquidity, slippage and transaction risk
+            before trading tokenized stocks on-chain.
           </p>
 
           <div className="mt-5">
@@ -240,7 +307,8 @@ export default function Home() {
             {apiStatus === "fallback" && (
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/[0.08] px-3 py-1.5 text-xs font-medium text-amber-300">
                 <span className="h-2 w-2 rounded-full bg-amber-300" />
-                DEMO · Binance RWA API unavailable in this environment
+                DEMO · Binance RWA API unavailable in
+                this environment
               </div>
             )}
           </div>
@@ -249,7 +317,10 @@ export default function Home() {
         <div className="grid gap-6 lg:grid-cols-[0.85fr_1.5fr]">
           <div className="rounded-3xl border border-white/10 bg-[#0d1118] p-5">
             <div className="mb-4">
-              <div className="text-sm font-semibold">Discover stocks</div>
+              <div className="text-sm font-semibold">
+                Discover stocks
+              </div>
+
               <div className="mt-1 text-xs text-zinc-500">
                 Search supported tokenized equities
               </div>
@@ -257,7 +328,9 @@ export default function Home() {
 
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
               placeholder="Search NVDA, TSLA, AAPL..."
               className="mb-5 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-zinc-600 focus:border-emerald-400/50"
             />
@@ -271,7 +344,8 @@ export default function Home() {
                     setSimulated(false);
                   }}
                   className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${
-                    selected.symbol === stock.symbol
+                    selected.symbol ===
+                    stock.symbol
                       ? "border-emerald-400/40 bg-emerald-400/10"
                       : "border-white/5 bg-white/[0.02] hover:bg-white/[0.05]"
                   }`}
@@ -282,7 +356,9 @@ export default function Home() {
                     </div>
 
                     <div>
-                      <div className="font-semibold">{stock.symbol}</div>
+                      <div className="font-semibold">
+                        {stock.symbol}
+                      </div>
                       <div className="text-xs text-zinc-500">
                         {stock.name}
                       </div>
@@ -294,7 +370,8 @@ export default function Home() {
                       ${stock.price.toFixed(2)}
                     </div>
                     <div className="text-xs text-emerald-400">
-                      +{stock.gap.toFixed(2)}% gap
+                      +
+                      {stock.gap.toFixed(2)}% gap
                     </div>
                   </div>
                 </button>
@@ -306,14 +383,18 @@ export default function Home() {
             <div className="flex flex-col justify-between gap-5 border-b border-white/10 pb-6 md:flex-row md:items-center">
               <div>
                 <div className="mb-2 flex items-center gap-3">
-                  <h2 className="text-3xl font-bold">{selected.symbol}</h2>
+                  <h2 className="text-3xl font-bold">
+                    {selected.symbol}
+                  </h2>
+
                   <span className="rounded-lg bg-white/10 px-2 py-1 text-xs text-zinc-300">
                     {selected.token}
                   </span>
                 </div>
 
                 <div className="text-sm text-zinc-500">
-                  {selected.name} · {selected.provider}
+                  {selected.name} ·{" "}
+                  {selected.provider}
                 </div>
               </div>
 
@@ -321,6 +402,7 @@ export default function Home() {
                 <div className="text-3xl font-semibold">
                   ${selected.price.toFixed(2)}
                 </div>
+
                 <div className="mt-1 text-xs text-zinc-500">
                   {apiStatus === "connected"
                     ? "Live on-chain price"
@@ -332,32 +414,50 @@ export default function Home() {
             <div className="grid gap-3 py-6 sm:grid-cols-2 xl:grid-cols-4">
               <Metric
                 label="Reference price"
-                value={`$${selected.reference.toFixed(2)}`}
+                value={`$${selected.reference.toFixed(
+                  2,
+                )}`}
               />
+
               <Metric
                 label="Price deviation"
-                value={`+${selected.gap.toFixed(2)}%`}
+                value={`+${selected.gap.toFixed(
+                  2,
+                )}%`}
               />
-              <Metric label="Liquidity" value={selected.liquidity} />
+
+              <Metric
+                label="Liquidity"
+                value={formatLiquidity(
+                  selected.liquidity,
+                )}
+              />
+
               <Metric
                 label="Market"
                 value={selected.market}
-                warning={selected.market === "CLOSED"}
+                warning={
+                  selected.market !== "OPEN"
+                }
               />
             </div>
 
-            {selected.market === "CLOSED" && (
+            {selected.market !== "OPEN" && (
               <div className="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5">
                 <div className="flex gap-3">
                   <div className="text-xl">⚠</div>
+
                   <div>
                     <div className="font-semibold text-amber-200">
                       Underlying market is closed
                     </div>
+
                     <p className="mt-1 text-sm leading-6 text-zinc-400">
-                      The token can continue trading on-chain while the
-                      underlying market is closed. Reference pricing may be less
-                      current until the market reopens.
+                      The token can continue trading
+                      on-chain while the underlying
+                      market is closed. Reference
+                      pricing may be less current until
+                      the market reopens.
                     </p>
                   </div>
                 </div>
@@ -372,7 +472,10 @@ export default function Home() {
 
                 <div className="mt-3 flex items-end justify-between">
                   <div>
-                    <div className="text-3xl font-bold">{selected.risk}</div>
+                    <div className="text-3xl font-bold">
+                      {selected.risk}
+                    </div>
+
                     <div className="mt-1 text-xs text-zinc-500">
                       Current execution risk
                     </div>
@@ -386,10 +489,42 @@ export default function Home() {
                 <div className="mt-6 space-y-3 text-sm">
                   <Row
                     label="Estimated slippage"
-                    value={selected.slippage}
+                    value={`${selected.slippage.toFixed(
+                      2,
+                    )}%`}
                   />
-                  <Row label="Price impact" value={selected.impact} />
-                  <Row label="Network" value="BNB Smart Chain" />
+
+                  <Row
+                    label="Price impact"
+                    value={`${selected.impact.toFixed(
+                      2,
+                    )}%`}
+                  />
+
+                  <Row
+                    label="Network"
+                    value="BNB Smart Chain"
+                  />
+
+                  <Row
+                    label="Wallet"
+                    value={
+                      wallet.connected
+                        ? "Connected"
+                        : "Not connected"
+                    }
+                  />
+
+                  <Row
+                    label="Gas balance"
+                    value={
+                      wallet.connected
+                        ? `${wallet.bnbBalance.toFixed(
+                            6,
+                          )} BNB`
+                        : "Unavailable"
+                    }
+                  />
                 </div>
               </div>
 
@@ -399,55 +534,132 @@ export default function Home() {
                 </div>
 
                 <div className="mt-4 flex items-center rounded-xl border border-white/10 bg-white/[0.03] px-4">
-                  <span className="text-zinc-500">$</span>
+                  <span className="text-zinc-500">
+                    $
+                  </span>
+
                   <input
                     value={amount}
-                    onChange={(e) => {
-                      setAmount(e.target.value);
+                    onChange={(event) => {
+                      setAmount(
+                        event.target.value,
+                      );
                       setSimulated(false);
                     }}
                     type="number"
+                    min="0"
                     className="w-full bg-transparent px-2 py-3 text-lg font-semibold outline-none"
                   />
-                  <span className="text-sm text-zinc-400">USDT</span>
+
+                  <span className="text-sm text-zinc-400">
+                    USDT
+                  </span>
                 </div>
 
+                {!wallet.connected && (
+                  <div className="mt-3 text-xs text-amber-300">
+                    Connect MetaMask before running
+                    the complete wallet safety check.
+                  </div>
+                )}
+
+                {wallet.connected &&
+                  !correctNetwork && (
+                    <div className="mt-3 text-xs text-red-300">
+                      Switch MetaMask to BNB Smart
+                      Chain before continuing.
+                    </div>
+                  )}
+
                 <button
-                  onClick={() => setSimulated(true)}
+                  onClick={handleSimulate}
                   className="mt-3 w-full rounded-xl bg-emerald-400 py-3 font-bold text-black transition hover:bg-emerald-300"
                 >
-                  Simulate Transaction
+                  Run Pre-Trade Check
                 </button>
 
                 {simulated && (
-                  <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
-                    <div className="mb-3 text-sm font-semibold text-emerald-300">
-                      ✓ Demo simulation passed
+                  <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.025] p-4">
+                    <div className="mb-3 text-sm font-semibold text-zinc-200">
+                      Transaction preview
                     </div>
 
                     <div className="space-y-2 text-sm">
                       <Row
                         label="You pay"
-                        value={`$${amount || "0"} USDT`}
+                        value={`$${
+                          amount || "0"
+                        } USDT`}
                       />
+
                       <Row
                         label="Estimated receive"
                         value={`${receive} ${selected.token}`}
                       />
-                      <Row label="Slippage" value={selected.slippage} />
-                      <Row label="Price impact" value={selected.impact} />
-                    </div>
 
-                    <button className="mt-4 w-full cursor-not-allowed rounded-xl border border-white/10 bg-white/70 py-3 font-bold text-black">
-                      Execute Trade · Coming next
-                    </button>
+                      <Row
+                        label="Slippage"
+                        value={`${selected.slippage.toFixed(
+                          2,
+                        )}%`}
+                      />
+
+                      <Row
+                        label="Price impact"
+                        value={`${selected.impact.toFixed(
+                          2,
+                        )}%`}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
+            {simulated && (
+              <div className="mt-6">
+                <TradeSafetyCheck
+                  walletConnected={
+                    wallet.connected &&
+                    correctNetwork
+                  }
+                  bnbBalance={
+                    wallet.bnbBalance
+                  }
+                  marketStatus={
+                    selected.market
+                  }
+                  deviation={selected.gap}
+                  liquidity={
+                    selected.liquidity
+                  }
+                  slippage={
+                    selected.slippage
+                  }
+                  priceImpact={
+                    selected.impact
+                  }
+                />
+
+                <button
+                  type="button"
+                  disabled
+                  className="mt-4 w-full cursor-not-allowed rounded-xl border border-white/10 bg-white/70 py-3 font-bold text-black opacity-70"
+                >
+                  Execute Trade · Disabled in MVP
+                </button>
+
+                <div className="mt-2 text-center text-xs text-zinc-600">
+                  No transaction will be submitted
+                  and no token approval will be
+                  requested.
+                </div>
+              </div>
+            )}
+
             <div className="mt-6 text-center text-xs text-zinc-600">
-              StockShield MVP · Data mode is reported transparently by the
+              StockShield MVP · Data mode is
+              reported transparently by the
               StockShield API
             </div>
           </div>
@@ -468,10 +680,15 @@ function Metric({
 }) {
   return (
     <div className="rounded-2xl border border-white/5 bg-white/[0.025] p-4">
-      <div className="text-xs text-zinc-500">{label}</div>
+      <div className="text-xs text-zinc-500">
+        {label}
+      </div>
+
       <div
         className={`mt-2 font-semibold ${
-          warning ? "text-amber-300" : "text-white"
+          warning
+            ? "text-amber-300"
+            : "text-white"
         }`}
       >
         {value}
@@ -480,11 +697,22 @@ function Metric({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-zinc-500">{label}</span>
-      <span className="font-medium text-zinc-200">{value}</span>
+      <span className="text-zinc-500">
+        {label}
+      </span>
+
+      <span className="text-right font-medium text-zinc-200">
+        {value}
+      </span>
     </div>
   );
 }

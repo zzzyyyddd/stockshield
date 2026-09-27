@@ -29,42 +29,101 @@ declare global {
   }
 }
 
+export type WalletState = {
+  connected: boolean;
+  address: Address | null;
+  bnbBalance: number;
+  chainId: number | null;
+};
+
+type WalletButtonProps = {
+  onWalletChange?: (wallet: WalletState) => void;
+};
+
 const publicClient = createPublicClient({
   chain: bsc,
   transport: http(),
 });
 
-export default function WalletButton() {
+const emptyWallet: WalletState = {
+  connected: false,
+  address: null,
+  bnbBalance: 0,
+  chainId: null,
+};
+
+export default function WalletButton({
+  onWalletChange,
+}: WalletButtonProps) {
   const [address, setAddress] = useState<Address | null>(null);
-  const [balance, setBalance] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number>(0);
+  const [chainId, setChainId] = useState<number | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
 
-  const loadBalance = useCallback(async (walletAddress: Address) => {
-    try {
-      const value = await publicClient.getBalance({
+  const updateParent = useCallback(
+    (
+      walletAddress: Address | null,
+      walletBalance: number,
+      walletChainId: number | null,
+    ) => {
+      onWalletChange?.({
+        connected: Boolean(walletAddress),
         address: walletAddress,
+        bnbBalance: walletBalance,
+        chainId: walletChainId,
       });
+    },
+    [onWalletChange],
+  );
 
-      const formatted = Number(formatEther(value));
+  const loadBalance = useCallback(
+    async (
+      walletAddress: Address,
+      walletChainId: number | null = 56,
+    ) => {
+      try {
+        const value = await publicClient.getBalance({
+          address: walletAddress,
+        });
 
-      setBalance(
-        formatted.toLocaleString("en-US", {
-          minimumFractionDigits: 4,
-          maximumFractionDigits: 6,
-        }),
-      );
-    } catch {
-      setBalance(null);
-    }
-  }, []);
+        const numericBalance = Number(formatEther(value));
 
-  async function switchToBsc(provider: EthereumProvider) {
-    const currentChainId = await provider.request({
+        setBalance(numericBalance);
+        updateParent(
+          walletAddress,
+          numericBalance,
+          walletChainId,
+        );
+
+        return numericBalance;
+      } catch {
+        setBalance(0);
+        updateParent(walletAddress, 0, walletChainId);
+
+        return 0;
+      }
+    },
+    [updateParent],
+  );
+
+  async function getCurrentChainId(provider: EthereumProvider) {
+    const result = await provider.request({
       method: "eth_chainId",
     });
 
-    if (currentChainId === "0x38") {
+    if (typeof result !== "string") {
+      return null;
+    }
+
+    return Number.parseInt(result, 16);
+  }
+
+  async function switchToBsc(provider: EthereumProvider) {
+    const currentChainId = await getCurrentChainId(provider);
+
+    if (currentChainId === 56) {
+      setChainId(56);
       return;
     }
 
@@ -91,12 +150,18 @@ export default function WalletButton() {
               symbol: "BNB",
               decimals: 18,
             },
-            rpcUrls: ["https://bsc-dataseed.binance.org/"],
-            blockExplorerUrls: ["https://bscscan.com/"],
+            rpcUrls: [
+              "https://bsc-dataseed.binance.org/",
+            ],
+            blockExplorerUrls: [
+              "https://bscscan.com/",
+            ],
           },
         ],
       });
     }
+
+    setChainId(56);
   }
 
   async function connectWallet() {
@@ -121,12 +186,16 @@ export default function WalletButton() {
 
       const accounts = await walletClient.requestAddresses();
 
-      if (accounts.length > 0) {
-        const walletAddress = accounts[0];
-
-        setAddress(walletAddress);
-        await loadBalance(walletAddress);
+      if (accounts.length === 0) {
+        return;
       }
+
+      const walletAddress = accounts[0];
+
+      setAddress(walletAddress);
+      setChainId(56);
+
+      await loadBalance(walletAddress, 56);
     } catch (err) {
       const walletError = err as { code?: number };
 
@@ -144,6 +213,11 @@ export default function WalletButton() {
     const provider = window.ethereum;
 
     if (!provider) {
+      updateParent(
+        emptyWallet.address,
+        emptyWallet.bnbBalance,
+        emptyWallet.chainId,
+      );
       return;
     }
 
@@ -153,41 +227,83 @@ export default function WalletButton() {
           method: "eth_accounts",
         })) as Address[];
 
-        if (accounts.length > 0) {
-          const walletAddress = accounts[0];
+        const currentChainId =
+          await getCurrentChainId(provider!);
 
-          setAddress(walletAddress);
-          await loadBalance(walletAddress);
+        setChainId(currentChainId);
+
+        if (accounts.length === 0) {
+          setAddress(null);
+          setBalance(0);
+          updateParent(null, 0, currentChainId);
+          return;
         }
+
+        const walletAddress = accounts[0];
+
+        setAddress(walletAddress);
+
+        await loadBalance(
+          walletAddress,
+          currentChainId,
+        );
       } catch {
-        // No previously connected account.
+        updateParent(null, 0, null);
       }
     }
 
     function handleAccountsChanged(...args: unknown[]) {
       const accounts = args[0] as Address[];
 
-      if (accounts && accounts.length > 0) {
-        const walletAddress = accounts[0];
-
-        setAddress(walletAddress);
-        void loadBalance(walletAddress);
-      } else {
+      if (!accounts || accounts.length === 0) {
         setAddress(null);
-        setBalance(null);
+        setBalance(0);
+        updateParent(null, 0, chainId);
+        return;
       }
+
+      const walletAddress = accounts[0];
+
+      setAddress(walletAddress);
+
+      void loadBalance(
+        walletAddress,
+        chainId,
+      );
     }
 
-    function handleChainChanged() {
+    function handleChainChanged(...args: unknown[]) {
+      const rawChainId = args[0];
+
+      if (typeof rawChainId !== "string") {
+        return;
+      }
+
+      const newChainId = Number.parseInt(rawChainId, 16);
+
+      setChainId(newChainId);
+
       if (address) {
-        void loadBalance(address);
+        void loadBalance(
+          address,
+          newChainId,
+        );
+      } else {
+        updateParent(null, 0, newChainId);
       }
     }
 
-    restoreConnection();
+    void restoreConnection();
 
-    provider.on?.("accountsChanged", handleAccountsChanged);
-    provider.on?.("chainChanged", handleChainChanged);
+    provider.on?.(
+      "accountsChanged",
+      handleAccountsChanged,
+    );
+
+    provider.on?.(
+      "chainChanged",
+      handleChainChanged,
+    );
 
     return () => {
       provider.removeListener?.(
@@ -200,11 +316,26 @@ export default function WalletButton() {
         handleChainChanged,
       );
     };
-  }, [address, loadBalance]);
+  }, [
+    address,
+    chainId,
+    loadBalance,
+    updateParent,
+  ]);
 
   const shortAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
     : null;
+
+  const formattedBalance = balance.toLocaleString(
+    "en-US",
+    {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 6,
+    },
+  );
+
+  const correctNetwork = chainId === 56;
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -220,9 +351,16 @@ export default function WalletButton() {
       </button>
 
       {address && (
-        <span className="text-[10px] font-medium text-emerald-400">
-          BNB Smart Chain
-          {balance !== null ? ` · ${balance} BNB` : ""}
+        <span
+          className={`text-[10px] font-medium ${
+            correctNetwork
+              ? "text-emerald-400"
+              : "text-amber-300"
+          }`}
+        >
+          {correctNetwork
+            ? `BNB Smart Chain · ${formattedBalance} BNB`
+            : "Wrong network · click wallet to switch"}
         </span>
       )}
 

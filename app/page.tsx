@@ -64,6 +64,13 @@ const demoStocks: Stock[] = [
   },
 ];
 
+type QuoteResult = {
+  amountOut: string;
+  effectivePrice: number | null;
+  provider: string;
+  blockNumber: string | null;
+};
+
 type ApiStatus = "checking" | "connected" | "fallback";
 
 type ApiStock = {
@@ -88,9 +95,15 @@ export default function Home() {
   const [selected, setSelected] = useState<Stock>(demoStocks[0]);
   const [search, setSearch] = useState("");
   const [amount, setAmount] = useState("20");
+
   const [simulated, setSimulated] = useState(false);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [liveQuote, setLiveQuote] = useState<QuoteResult | null>(null);
+
   const [apiStatus, setApiStatus] =
     useState<ApiStatus>("checking");
+
   const [wallet, setWallet] =
     useState<WalletState>(emptyWallet);
 
@@ -138,33 +151,43 @@ export default function Home() {
             return {
               symbol: item.symbol!,
               name: item.name!,
+
               token:
                 original?.token ??
                 `${item.symbol}x`,
+
               provider:
                 original?.provider ??
                 "Tokenized Stock",
+
               price: item.price!,
+
               reference:
                 item.referencePrice ??
                 original?.reference ??
                 item.price!,
+
               gap:
                 item.deviation ??
                 original?.gap ??
                 0,
+
               liquidity:
                 item.liquidity ??
                 original?.liquidity ??
                 0,
+
               slippage:
                 original?.slippage ?? 0,
+
               impact:
                 original?.impact ?? 0,
+
               market:
                 item.marketStatus ??
                 original?.market ??
                 "UNKNOWN",
+
               risk:
                 original?.risk ?? "UNKNOWN",
             };
@@ -198,14 +221,6 @@ export default function Home() {
         .includes(search.toLowerCase()),
   );
 
-  const receive =
-    Number(amount || 0) > 0
-      ? (
-          Number(amount) /
-          selected.price
-        ).toFixed(6)
-      : "0.000000";
-
   const correctNetwork =
     wallet.chainId === 56;
 
@@ -215,8 +230,83 @@ export default function Home() {
     setWallet(nextWallet);
   }
 
-  function handleSimulate() {
-    setSimulated(true);
+  async function handleSimulate() {
+    setSimulated(false);
+    setLiveQuote(null);
+    setQuoteError(null);
+
+    const amountNumber = Number(amount);
+
+    if (
+      !Number.isFinite(amountNumber) ||
+      amountNumber <= 0
+    ) {
+      setQuoteError(
+        "Enter a valid USDT amount greater than 0.",
+      );
+      return;
+    }
+
+    if (selected.symbol !== "NVDA") {
+      setQuoteError(
+        "Live on-chain quote is currently available for NVDA / NVDAB only.",
+      );
+      return;
+    }
+
+    setQuoteLoading(true);
+
+    try {
+      const response = await fetch(
+        `/api/quote?amount=${encodeURIComponent(amount)}`,
+        {
+          cache: "no-store",
+        },
+      );
+
+      const result = await response.json();
+
+      if (
+        !response.ok ||
+        result?.success !== true ||
+        typeof result?.quote?.amountOut !== "string"
+      ) {
+        throw new Error(
+          typeof result?.error === "string"
+            ? result.error
+            : "Live PancakeSwap quote was not returned.",
+        );
+      }
+
+      setLiveQuote({
+        amountOut: result.quote.amountOut,
+
+        effectivePrice:
+          typeof result.quote.effectivePrice === "number"
+            ? result.quote.effectivePrice
+            : null,
+
+        provider:
+          typeof result.provider === "string"
+            ? result.provider
+            : "PancakeSwap V3",
+
+        blockNumber:
+          typeof result.blockNumber === "string"
+            ? result.blockNumber
+            : null,
+      });
+
+      setSimulated(true);
+    } catch (error) {
+      setQuoteError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load the live on-chain quote.",
+      );
+    } finally {
+      setQuoteLoading(false);
+    }
   }
 
   function formatLiquidity(value: number) {
@@ -248,6 +338,7 @@ export default function Home() {
               <div className="text-lg font-bold tracking-tight">
                 StockShield
               </div>
+
               <div className="text-xs text-zinc-500">
                 Tokenized Stock Safety Layer
               </div>
@@ -258,8 +349,14 @@ export default function Home() {
             <button className="text-white">
               Discover
             </button>
-            <button>Check</button>
-            <button>Portfolio</button>
+
+            <button>
+              Check
+            </button>
+
+            <button>
+              Portfolio
+            </button>
           </div>
 
           <WalletButton
@@ -299,14 +396,14 @@ export default function Home() {
             {apiStatus === "connected" && (
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-300">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                LIVE Â· Binance Web3 API
+                LIVE · Binance Web3 API
               </div>
             )}
 
             {apiStatus === "fallback" && (
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/[0.08] px-3 py-1.5 text-xs font-medium text-amber-300">
                 <span className="h-2 w-2 rounded-full bg-amber-300" />
-                DEMO Â· Binance RWA API unavailable in
+                DEMO · Binance RWA API unavailable in
                 this environment
               </div>
             )}
@@ -341,10 +438,11 @@ export default function Home() {
                   onClick={() => {
                     setSelected(stock);
                     setSimulated(false);
+                    setLiveQuote(null);
+                    setQuoteError(null);
                   }}
                   className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${
-                    selected.symbol ===
-                    stock.symbol
+                    selected.symbol === stock.symbol
                       ? "border-emerald-400/40 bg-emerald-400/10"
                       : "border-white/5 bg-white/[0.02] hover:bg-white/[0.05]"
                   }`}
@@ -358,6 +456,7 @@ export default function Home() {
                       <div className="font-semibold">
                         {stock.symbol}
                       </div>
+
                       <div className="text-xs text-zinc-500">
                         {stock.name}
                       </div>
@@ -368,6 +467,7 @@ export default function Home() {
                     <div className="text-sm font-medium">
                       ${stock.price.toFixed(2)}
                     </div>
+
                     <div className="text-xs text-emerald-400">
                       +
                       {stock.gap.toFixed(2)}% gap
@@ -392,7 +492,7 @@ export default function Home() {
                 </div>
 
                 <div className="text-sm text-zinc-500">
-                  {selected.name} Â·{" "}
+                  {selected.name} ·{" "}
                   {selected.provider}
                 </div>
               </div>
@@ -444,7 +544,9 @@ export default function Home() {
             {selected.market !== "OPEN" && (
               <div className="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5">
                 <div className="flex gap-3">
-                  <div className="text-xl">âš </div>
+                  <div className="text-xl">
+                    ⚠
+                  </div>
 
                   <div>
                     <div className="font-semibold text-amber-200">
@@ -494,7 +596,7 @@ export default function Home() {
                   />
 
                   <Row
-                    label="Price impact"
+                    label="Price impact (MVP estimate)"
                     value={`${selected.impact.toFixed(
                       2,
                     )}%`}
@@ -543,7 +645,10 @@ export default function Home() {
                       setAmount(
                         event.target.value,
                       );
+
                       setSimulated(false);
+                      setLiveQuote(null);
+                      setQuoteError(null);
                     }}
                     type="number"
                     min="0"
@@ -572,10 +677,26 @@ export default function Home() {
 
                 <button
                   onClick={handleSimulate}
-                  className="mt-3 w-full rounded-xl bg-emerald-400 py-3 font-bold text-black transition hover:bg-emerald-300"
+                  disabled={quoteLoading}
+                  className="mt-3 w-full rounded-xl bg-emerald-400 py-3 font-bold text-black transition hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-60"
                 >
-                  Run Pre-Trade Check
+                  {quoteLoading
+                    ? "Loading Live Quote..."
+                    : "Run Pre-Trade Check"}
                 </button>
+
+                {selected.symbol !== "NVDA" && (
+                  <div className="mt-3 text-xs leading-5 text-zinc-500">
+                    Live PancakeSwap quote is currently
+                    enabled for NVDA / NVDAB only.
+                  </div>
+                )}
+
+                {quoteError && (
+                  <div className="mt-3 rounded-xl border border-red-400/20 bg-red-400/[0.06] p-3 text-xs leading-5 text-red-300">
+                    Quote unavailable: {quoteError}
+                  </div>
+                )}
 
                 {simulated && (
                   <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.025] p-4">
@@ -586,18 +707,36 @@ export default function Home() {
                     <div className="space-y-2 text-sm">
                       <Row
                         label="You pay"
-                        value={`$${
-                          amount || "0"
-                        } USDT`}
+                        value={`$${amount || "0"} USDT`}
                       />
 
                       <Row
                         label="Estimated receive"
-                        value={`${receive} ${selected.token}`}
+                        value={`${liveQuote?.amountOut ?? "0"} NVDAB`}
                       />
 
                       <Row
-                        label="Slippage"
+                        label="Quote source"
+                        value={
+                          liveQuote?.provider ??
+                          "Unavailable"
+                        }
+                      />
+
+                      {liveQuote?.effectivePrice !==
+                        null &&
+                        liveQuote?.effectivePrice !==
+                          undefined && (
+                          <Row
+                            label="Effective price"
+                            value={`$${liveQuote.effectivePrice.toFixed(
+                              4,
+                            )} / NVDAB`}
+                          />
+                        )}
+
+                      <Row
+                        label="Slippage (MVP estimate)"
                         value={`${selected.slippage.toFixed(
                           2,
                         )}%`}
@@ -645,7 +784,7 @@ export default function Home() {
                   disabled
                   className="mt-4 w-full cursor-not-allowed rounded-xl border border-white/10 bg-white/70 py-3 font-bold text-black opacity-70"
                 >
-                  Execute Trade Â· Disabled in MVP
+                  Execute Trade · Disabled in MVP
                 </button>
 
                 <div className="mt-2 text-center text-xs text-zinc-600">
@@ -657,7 +796,7 @@ export default function Home() {
             )}
 
             <div className="mt-6 text-center text-xs text-zinc-600">
-              StockShield MVP Â· Data mode is
+              StockShield MVP · Data mode is
               reported transparently by the
               StockShield API
             </div>

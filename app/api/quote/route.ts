@@ -33,22 +33,10 @@ const quoterAbi = [
         name: "params",
         type: "tuple",
         components: [
-          {
-            name: "tokenIn",
-            type: "address",
-          },
-          {
-            name: "tokenOut",
-            type: "address",
-          },
-          {
-            name: "amountIn",
-            type: "uint256",
-          },
-          {
-            name: "fee",
-            type: "uint24",
-          },
+          { name: "tokenIn", type: "address" },
+          { name: "tokenOut", type: "address" },
+          { name: "amountIn", type: "uint256" },
+          { name: "fee", type: "uint24" },
           {
             name: "sqrtPriceLimitX96",
             type: "uint160",
@@ -77,12 +65,89 @@ const quoterAbi = [
   },
 ] as const;
 
-export async function GET(request: NextRequest) {
+const poolAbi = [
+  {
+    type: "function",
+    name: "slot0",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      {
+        name: "sqrtPriceX96",
+        type: "uint160",
+      },
+      {
+        name: "tick",
+        type: "int24",
+      },
+      {
+        name: "observationIndex",
+        type: "uint16",
+      },
+      {
+        name: "observationCardinality",
+        type: "uint16",
+      },
+      {
+        name: "observationCardinalityNext",
+        type: "uint16",
+      },
+      {
+        name: "feeProtocol",
+        type: "uint32",
+      },
+      {
+        name: "unlocked",
+        type: "bool",
+      },
+    ],
+  },
+] as const;
+
+function calculateSpotPrice(
+  sqrtPriceX96: bigint,
+) {
+  /*
+   * Pool:
+   * token0 = NVDAB
+   * token1 = USDT
+   *
+   * Both tokens use 18 decimals.
+   *
+   * price token0 in token1:
+   *
+   * (sqrtPriceX96 / 2^96)^2
+   *
+   * Therefore the result is:
+   * USDT per NVDAB.
+   */
+
+  const Q96 = BigInt(2) ** BigInt(96);
+
+  /*
+   * Avoid converting the huge Q96 integer directly
+   * before reducing the magnitude.
+   *
+   * Number() is acceptable here for UI analytics,
+   * while contract amounts remain bigint.
+   */
+  const sqrtRatio =
+    Number(sqrtPriceX96) / Number(Q96);
+
+  return sqrtRatio * sqrtRatio;
+}
+
+export async function GET(
+  request: NextRequest,
+) {
   try {
     const amountText =
-      request.nextUrl.searchParams.get("amount") ?? "20";
+      request.nextUrl.searchParams.get(
+        "amount",
+      ) ?? "20";
 
-    const amountNumber = Number(amountText);
+    const amountNumber =
+      Number(amountText);
 
     if (
       !Number.isFinite(amountNumber) ||
@@ -92,7 +157,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid USDT amount.",
+          error:
+            "Invalid USDT amount.",
         },
         {
           status: 400,
@@ -100,41 +166,59 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    /*
-     * USDT BSC dan NVDAB sudah kita validasi langsung
-     * dari kontrak dan keduanya menggunakan 18 decimals.
-     */
-    const amountIn = parseUnits(amountText, 18);
+    const amountIn =
+      parseUnits(amountText, 18);
 
-    const client = createPublicClient({
-      chain: bsc,
-      transport: http(RPC),
-    });
+    const client =
+      createPublicClient({
+        chain: bsc,
+        transport: http(RPC),
+      });
 
     /*
-     * simulateContract hanya melakukan simulasi RPC.
-     *
-     * Tidak mengirim transaksi.
-     * Tidak meminta approval.
-     * Tidak meminta signature wallet.
+     * Read the pool price BEFORE
+     * the simulated swap.
      */
-    const simulation = await client.simulateContract({
-      address: QUOTER,
-      abi: quoterAbi,
-      functionName: "quoteExactInputSingle",
-      args: [
-        {
-          tokenIn: USDT,
-          tokenOut: NVDAB,
-          amountIn: amountIn,
-          fee: FEE,
+    const slot0 =
+      await client.readContract({
+        address: POOL,
+        abi: poolAbi,
+        functionName: "slot0",
+      });
 
-          // Ditulis seperti ini agar kompatibel
-          // dengan target TypeScript project kita.
-          sqrtPriceLimitX96: BigInt(0),
-        },
-      ],
-    });
+    const sqrtPriceX96Before =
+      slot0[0];
+
+    const tickBefore =
+      slot0[1];
+
+    const spotPrice =
+      calculateSpotPrice(
+        sqrtPriceX96Before,
+      );
+
+    /*
+     * Read-only Quoter simulation.
+     * No approval, signature or
+     * transaction is submitted.
+     */
+    const simulation =
+      await client.simulateContract({
+        address: QUOTER,
+        abi: quoterAbi,
+        functionName:
+          "quoteExactInputSingle",
+        args: [
+          {
+            tokenIn: USDT,
+            tokenOut: NVDAB,
+            amountIn,
+            fee: FEE,
+            sqrtPriceLimitX96:
+              BigInt(0),
+          },
+        ],
+      });
 
     const [
       amountOutRaw,
@@ -143,15 +227,43 @@ export async function GET(request: NextRequest) {
       gasEstimate,
     ] = simulation.result;
 
-    const amountOut = formatUnits(
-      amountOutRaw,
-      18,
-    );
+    const amountOut =
+      formatUnits(
+        amountOutRaw,
+        18,
+      );
+
+    const amountOutNumber =
+      Number(amountOut);
 
     const effectivePrice =
-      Number(amountOut) > 0
-        ? amountNumber / Number(amountOut)
+      amountOutNumber > 0
+        ? amountNumber /
+          amountOutNumber
         : null;
+
+    /*
+     * Price impact compares the
+     * effective execution price
+     * with the pre-trade pool
+     * spot price.
+     */
+    const priceImpactPercent =
+      effectivePrice !== null &&
+      spotPrice > 0
+        ? Math.max(
+            0,
+            ((effectivePrice -
+              spotPrice) /
+              spotPrice) *
+              100,
+          )
+        : null;
+
+    const spotPriceAfter =
+      calculateSpotPrice(
+        sqrtPriceX96After,
+      );
 
     const blockNumber =
       await client.getBlockNumber();
@@ -159,12 +271,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
 
-      mode: "onchain-live-quote",
+      mode:
+        "onchain-live-quote",
 
       provider:
         "PancakeSwap V3 QuoterV2",
 
-      chain: "BNB Smart Chain",
+      chain:
+        "BNB Smart Chain",
 
       chainId: 56,
 
@@ -176,34 +290,44 @@ export async function GET(request: NextRequest) {
         output: "NVDAB",
       },
 
-      contracts: {
-        quoter: QUOTER,
-        usdt: USDT,
-        nvdab: NVDAB,
-      },
-
       pool: {
         address: POOL,
         fee: FEE,
         feePercent: 0.25,
+        token0: "NVDAB",
+        token1: "USDT",
       },
 
       quote: {
-        amountIn: amountText,
+        amountIn:
+          amountText,
 
-        amountOut: amountOut,
+        amountOut,
 
         amountOutRaw:
           amountOutRaw.toString(),
 
-        effectivePrice:
-          effectivePrice,
+        spotPrice,
+
+        effectivePrice,
+
+        priceImpactPercent,
+
+        spotPriceAfter,
+
+        tickBefore:
+          Number(tickBefore),
+
+        sqrtPriceX96Before:
+          sqrtPriceX96Before.toString(),
 
         sqrtPriceX96After:
           sqrtPriceX96After.toString(),
 
         initializedTicksCrossed:
-          Number(initializedTicksCrossed),
+          Number(
+            initializedTicksCrossed,
+          ),
 
         gasEstimate:
           gasEstimate.toString(),
@@ -211,11 +335,8 @@ export async function GET(request: NextRequest) {
 
       safety: {
         readOnly: true,
-
         approvalRequested: false,
-
         signatureRequested: false,
-
         transactionSubmitted: false,
       },
 
@@ -227,7 +348,8 @@ export async function GET(request: NextRequest) {
       {
         success: false,
 
-        mode: "onchain-live-quote",
+        mode:
+          "onchain-live-quote",
 
         provider:
           "PancakeSwap V3 QuoterV2",

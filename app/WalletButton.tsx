@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createWalletClient, custom, type Address } from "viem";
+import { useCallback, useEffect, useState } from "react";
+import {
+  createPublicClient,
+  createWalletClient,
+  custom,
+  formatEther,
+  http,
+  type Address,
+} from "viem";
 import { bsc } from "viem/chains";
 
 type EthereumProvider = {
@@ -22,10 +29,35 @@ declare global {
   }
 }
 
+const publicClient = createPublicClient({
+  chain: bsc,
+  transport: http(),
+});
+
 export default function WalletButton() {
   const [address, setAddress] = useState<Address | null>(null);
+  const [balance, setBalance] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
+
+  const loadBalance = useCallback(async (walletAddress: Address) => {
+    try {
+      const value = await publicClient.getBalance({
+        address: walletAddress,
+      });
+
+      const formatted = Number(formatEther(value));
+
+      setBalance(
+        formatted.toLocaleString("en-US", {
+          minimumFractionDigits: 4,
+          maximumFractionDigits: 6,
+        }),
+      );
+    } catch {
+      setBalance(null);
+    }
+  }, []);
 
   async function switchToBsc(provider: EthereumProvider) {
     const currentChainId = await provider.request({
@@ -90,7 +122,10 @@ export default function WalletButton() {
       const accounts = await walletClient.requestAddresses();
 
       if (accounts.length > 0) {
-        setAddress(accounts[0]);
+        const walletAddress = accounts[0];
+
+        setAddress(walletAddress);
+        await loadBalance(walletAddress);
       }
     } catch (err) {
       const walletError = err as { code?: number };
@@ -119,7 +154,10 @@ export default function WalletButton() {
         })) as Address[];
 
         if (accounts.length > 0) {
-          setAddress(accounts[0]);
+          const walletAddress = accounts[0];
+
+          setAddress(walletAddress);
+          await loadBalance(walletAddress);
         }
       } catch {
         // No previously connected account.
@@ -130,23 +168,39 @@ export default function WalletButton() {
       const accounts = args[0] as Address[];
 
       if (accounts && accounts.length > 0) {
-        setAddress(accounts[0]);
+        const walletAddress = accounts[0];
+
+        setAddress(walletAddress);
+        void loadBalance(walletAddress);
       } else {
         setAddress(null);
+        setBalance(null);
+      }
+    }
+
+    function handleChainChanged() {
+      if (address) {
+        void loadBalance(address);
       }
     }
 
     restoreConnection();
 
     provider.on?.("accountsChanged", handleAccountsChanged);
+    provider.on?.("chainChanged", handleChainChanged);
 
     return () => {
       provider.removeListener?.(
         "accountsChanged",
         handleAccountsChanged,
       );
+
+      provider.removeListener?.(
+        "chainChanged",
+        handleChainChanged,
+      );
     };
-  }, []);
+  }, [address, loadBalance]);
 
   const shortAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -168,6 +222,7 @@ export default function WalletButton() {
       {address && (
         <span className="text-[10px] font-medium text-emerald-400">
           BNB Smart Chain
+          {balance !== null ? ` · ${balance} BNB` : ""}
         </span>
       )}
 

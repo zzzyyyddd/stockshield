@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import WalletButton from "./WalletButton";
 
 type Stock = {
   symbol: string;
@@ -201,9 +202,7 @@ export default function Home() {
             <button>Portfolio</button>
           </div>
 
-          <button className="rounded-xl border border-white/10 bg-white px-4 py-2 text-sm font-semibold text-black">
-            Connect Wallet
-          </button>
+          <WalletButton />
         </div>
       </nav>
 
@@ -284,7 +283,9 @@ export default function Home() {
 
                     <div>
                       <div className="font-semibold">{stock.symbol}</div>
-                      <div className="text-xs text-zinc-500">{stock.name}</div>
+                      <div className="text-xs text-zinc-500">
+                        {stock.name}
+                      </div>
                     </div>
                   </div>
 
@@ -320,7 +321,6 @@ export default function Home() {
                 <div className="text-3xl font-semibold">
                   ${selected.price.toFixed(2)}
                 </div>
-
                 <div className="mt-1 text-xs text-zinc-500">
                   {apiStatus === "connected"
                     ? "Live on-chain price"
@@ -334,14 +334,11 @@ export default function Home() {
                 label="Reference price"
                 value={`$${selected.reference.toFixed(2)}`}
               />
-
               <Metric
                 label="Price deviation"
                 value={`+${selected.gap.toFixed(2)}%`}
               />
-
               <Metric label="Liquidity" value={selected.liquidity} />
-
               <Metric
                 label="Market"
                 value={selected.market}
@@ -353,12 +350,10 @@ export default function Home() {
               <div className="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5">
                 <div className="flex gap-3">
                   <div className="text-xl">⚠</div>
-
                   <div>
                     <div className="font-semibold text-amber-200">
                       Underlying market is closed
                     </div>
-
                     <p className="mt-1 text-sm leading-6 text-zinc-400">
                       The token can continue trading on-chain while the
                       underlying market is closed. Reference pricing may be less
@@ -405,7 +400,6 @@ export default function Home() {
 
                 <div className="mt-4 flex items-center rounded-xl border border-white/10 bg-white/[0.03] px-4">
                   <span className="text-zinc-500">$</span>
-
                   <input
                     value={amount}
                     onChange={(e) => {
@@ -415,7 +409,6 @@ export default function Home() {
                     type="number"
                     className="w-full bg-transparent px-2 py-3 text-lg font-semibold outline-none"
                   />
-
                   <span className="text-sm text-zinc-400">USDT</span>
                 </div>
 
@@ -437,12 +430,10 @@ export default function Home() {
                         label="You pay"
                         value={`$${amount || "0"} USDT`}
                       />
-
                       <Row
                         label="Estimated receive"
                         value={`${receive} ${selected.token}`}
                       />
-
                       <Row label="Slippage" value={selected.slippage} />
                       <Row label="Price impact" value={selected.impact} />
                     </div>
@@ -478,7 +469,6 @@ function Metric({
   return (
     <div className="rounded-2xl border border-white/5 bg-white/[0.025] p-4">
       <div className="text-xs text-zinc-500">{label}</div>
-
       <div
         className={`mt-2 font-semibold ${
           warning ? "text-amber-300" : "text-white"

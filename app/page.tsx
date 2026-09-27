@@ -23,7 +23,7 @@ const demoStocks: Stock[] = [
   {
     symbol: "NVDA",
     name: "NVIDIA",
-    token: "NVDAx",
+    token: "NVDAB",
     provider: "Tokenized Stock",
     price: 184.8,
     reference: 183.9,
@@ -67,6 +67,9 @@ const demoStocks: Stock[] = [
 type QuoteResult = {
   amountOut: string;
   effectivePrice: number | null;
+  poolFeePercent: number | null;
+  marketImpactPercent: number | null;
+  effectiveExecutionDifferencePercent: number | null;
   provider: string;
   blockNumber: string | null;
 };
@@ -284,6 +287,23 @@ export default function Home() {
         effectivePrice:
           typeof result.quote.effectivePrice === "number"
             ? result.quote.effectivePrice
+            : null,
+
+        poolFeePercent:
+          typeof result.quote.poolFeePercent === "number"
+            ? result.quote.poolFeePercent
+            : null,
+
+        marketImpactPercent:
+          typeof result.quote.marketImpactPercent === "number"
+            ? result.quote.marketImpactPercent
+            : null,
+
+        effectiveExecutionDifferencePercent:
+          typeof result.quote
+            .effectiveExecutionDifferencePercent === "number"
+            ? result.quote
+                .effectiveExecutionDifferencePercent
             : null,
 
         provider:
@@ -596,10 +616,19 @@ export default function Home() {
                   />
 
                   <Row
-                    label="Price impact (MVP estimate)"
-                    value={`${selected.impact.toFixed(
-                      2,
-                    )}%`}
+                    label={
+                      simulated
+                        ? "Live market impact"
+                        : "Price impact (before simulation)"
+                    }
+                    value={
+                      simulated &&
+                      liveQuote?.marketImpactPercent != null
+                        ? `${liveQuote.marketImpactPercent.toFixed(
+                            6,
+                          )}%`
+                        : "Run check"
+                    }
                   />
 
                   <Row
@@ -736,18 +765,52 @@ export default function Home() {
                         )}
 
                       <Row
+                        label="Pool fee"
+                        value={
+                          liveQuote?.poolFeePercent != null
+                            ? `${liveQuote.poolFeePercent.toFixed(
+                                4,
+                              )}%`
+                            : "Unavailable"
+                        }
+                      />
+
+                      <Row
+                        label="Market impact"
+                        value={
+                          liveQuote?.marketImpactPercent != null
+                            ? `${liveQuote.marketImpactPercent.toFixed(
+                                6,
+                              )}%`
+                            : "Unavailable"
+                        }
+                      />
+
+                      <Row
+                        label="Total execution difference"
+                        value={
+                          liveQuote?.effectiveExecutionDifferencePercent !=
+                          null
+                            ? `${liveQuote.effectiveExecutionDifferencePercent.toFixed(
+                                4,
+                              )}%`
+                            : "Unavailable"
+                        }
+                      />
+
+                      <Row
                         label="Slippage (MVP estimate)"
                         value={`${selected.slippage.toFixed(
                           2,
                         )}%`}
                       />
 
-                      <Row
-                        label="Price impact"
-                        value={`${selected.impact.toFixed(
-                          2,
-                        )}%`}
-                      />
+                      {liveQuote?.blockNumber && (
+                        <Row
+                          label="Quote block"
+                          value={`#${liveQuote.blockNumber}`}
+                        />
+                      )}
                     </div>
                   </div>
                 )}
@@ -775,7 +838,8 @@ export default function Home() {
                     selected.slippage
                   }
                   priceImpact={
-                    selected.impact
+                    liveQuote?.marketImpactPercent ??
+                    0
                   }
                 />
 

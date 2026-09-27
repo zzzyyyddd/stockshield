@@ -23,6 +23,10 @@ const POOL =
 
 const FEE = 2500;
 
+// PancakeSwap / Uniswap V3 fee units:
+// 1,000,000 = 100%
+const FEE_DENOMINATOR = 1_000_000;
+
 const quoterAbi = [
   {
     type: "function",
@@ -112,27 +116,21 @@ function calculateSpotPrice(
    * token0 = NVDAB
    * token1 = USDT
    *
-   * Both tokens use 18 decimals.
+   * Both have 18 decimals.
    *
-   * price token0 in token1:
-   *
+   * token1 / token0 =
    * (sqrtPriceX96 / 2^96)^2
    *
-   * Therefore the result is:
-   * USDT per NVDAB.
+   * Result:
+   * USDT per NVDAB
    */
 
-  const Q96 = BigInt(2) ** BigInt(96);
+  const Q96 =
+    BigInt(2) ** BigInt(96);
 
-  /*
-   * Avoid converting the huge Q96 integer directly
-   * before reducing the magnitude.
-   *
-   * Number() is acceptable here for UI analytics,
-   * while contract amounts remain bigint.
-   */
   const sqrtRatio =
-    Number(sqrtPriceX96) / Number(Q96);
+    Number(sqrtPriceX96) /
+    Number(Q96);
 
   return sqrtRatio * sqrtRatio;
 }
@@ -157,8 +155,7 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Invalid USDT amount.",
+          error: "Invalid USDT amount.",
         },
         {
           status: 400,
@@ -176,8 +173,7 @@ export async function GET(
       });
 
     /*
-     * Read the pool price BEFORE
-     * the simulated swap.
+     * 1. Read current pool spot price.
      */
     const slot0 =
       await client.readContract({
@@ -198,9 +194,12 @@ export async function GET(
       );
 
     /*
-     * Read-only Quoter simulation.
-     * No approval, signature or
-     * transaction is submitted.
+     * 2. Read-only swap simulation.
+     *
+     * No wallet.
+     * No approval.
+     * No signature.
+     * No transaction.
      */
     const simulation =
       await client.simulateContract({
@@ -236,6 +235,28 @@ export async function GET(
     const amountOutNumber =
       Number(amountOut);
 
+    /*
+     * 3. Pool fee.
+     */
+    const poolFeePercent =
+      (FEE / FEE_DENOMINATOR) *
+      100;
+
+    const poolFeeAmount =
+      amountNumber *
+      (FEE / FEE_DENOMINATOR);
+
+    const amountAfterFee =
+      amountNumber -
+      poolFeeAmount;
+
+    /*
+     * 4. Effective execution price.
+     *
+     * This uses the FULL user input,
+     * therefore it includes the effect
+     * of the pool fee.
+     */
     const effectivePrice =
       amountOutNumber > 0
         ? amountNumber /
@@ -243,12 +264,45 @@ export async function GET(
         : null;
 
     /*
-     * Price impact compares the
-     * effective execution price
-     * with the pre-trade pool
+     * 5. Execution price excluding fee.
+     *
+     * This lets us isolate the effect
+     * caused by moving through pool
+     * liquidity.
+     */
+    const executionPriceExcludingFee =
+      amountOutNumber > 0
+        ? amountAfterFee /
+          amountOutNumber
+        : null;
+
+    /*
+     * 6. Market impact.
+     *
+     * Compare fee-excluded execution
+     * price against the pre-trade
      * spot price.
      */
-    const priceImpactPercent =
+    const marketImpactPercent =
+      executionPriceExcludingFee !==
+        null &&
+      spotPrice > 0
+        ? Math.max(
+            0,
+            ((executionPriceExcludingFee -
+              spotPrice) /
+              spotPrice) *
+              100,
+          )
+        : null;
+
+    /*
+     * 7. Total execution difference.
+     *
+     * This DOES include fee and
+     * liquidity impact.
+     */
+    const effectiveExecutionDifferencePercent =
       effectivePrice !== null &&
       spotPrice > 0
         ? Math.max(
@@ -260,10 +314,23 @@ export async function GET(
           )
         : null;
 
+    /*
+     * 8. Post-trade pool spot price.
+     */
     const spotPriceAfter =
       calculateSpotPrice(
         sqrtPriceX96After,
       );
+
+    const postTradeSpotMovementPercent =
+      spotPrice > 0
+        ? Math.abs(
+            ((spotPriceAfter -
+              spotPrice) /
+              spotPrice) *
+              100,
+          )
+        : null;
 
     const blockNumber =
       await client.getBlockNumber();
@@ -293,7 +360,8 @@ export async function GET(
       pool: {
         address: POOL,
         fee: FEE,
-        feePercent: 0.25,
+        feePercent:
+          poolFeePercent,
         token0: "NVDAB",
         token1: "USDT",
       },
@@ -311,9 +379,19 @@ export async function GET(
 
         effectivePrice,
 
-        priceImpactPercent,
+        executionPriceExcludingFee,
+
+        poolFeePercent,
+
+        poolFeeAmount,
+
+        marketImpactPercent,
+
+        effectiveExecutionDifferencePercent,
 
         spotPriceAfter,
+
+        postTradeSpotMovementPercent,
 
         tickBefore:
           Number(tickBefore),

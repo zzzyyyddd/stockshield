@@ -1107,6 +1107,9 @@ export default function Home() {
                   deviation={
                     safetyDeviation
                   }
+                  referenceAvailable={
+                    referenceIsLive
+                  }
                   liquidity={
                     selected.liquidity
                   }

@@ -1,11 +1,13 @@
 "use client";
 
 type SafetyLevel = "PASS" | "CAUTION" | "BLOCK";
+type DisplayStatus = SafetyLevel | "NOT SCORED";
 
 type SafetyItem = {
   label: string;
-  status: SafetyLevel;
+  status: DisplayStatus;
   message: string;
+  scored: boolean;
 };
 
 type TradeSafetyCheckProps = {
@@ -13,6 +15,7 @@ type TradeSafetyCheckProps = {
   bnbBalance: number;
   marketStatus: string;
   deviation: number;
+  referenceAvailable?: boolean;
   liquidity: number;
   slippage: number;
   priceImpact: number;
@@ -23,22 +26,22 @@ export default function TradeSafetyCheck({
   bnbBalance,
   marketStatus,
   deviation,
+  referenceAvailable = true,
   liquidity,
   slippage,
   priceImpact,
 }: TradeSafetyCheckProps) {
   const checks: SafetyItem[] = [];
 
-  // 1. Wallet check
   checks.push({
     label: "Wallet connection",
     status: walletConnected ? "PASS" : "BLOCK",
+    scored: true,
     message: walletConnected
       ? "Wallet connected and ready"
       : "Connect a wallet before continuing",
   });
 
-  // 2. Gas balance check
   checks.push({
     label: "BNB gas balance",
     status: !walletConnected
@@ -48,6 +51,7 @@ export default function TradeSafetyCheck({
         : bnbBalance < 0.0005
           ? "CAUTION"
           : "PASS",
+    scored: true,
     message: !walletConnected
       ? "Gas balance unavailable until wallet is connected"
       : bnbBalance <= 0
@@ -57,34 +61,43 @@ export default function TradeSafetyCheck({
           : `${bnbBalance.toFixed(6)} BNB available for gas`,
   });
 
-  // 3. Underlying market check
   checks.push({
     label: "Underlying market",
     status: marketStatus === "OPEN" ? "PASS" : "CAUTION",
+    scored: true,
     message:
       marketStatus === "OPEN"
         ? "Underlying market is open"
         : "Underlying market is closed — reference pricing may be less current",
   });
 
-  // 4. Price deviation check
-  checks.push({
-    label: "Price deviation",
-    status:
-      deviation >= 3
-        ? "BLOCK"
-        : deviation >= 1
-          ? "CAUTION"
-          : "PASS",
-    message:
-      deviation >= 3
-        ? `${deviation.toFixed(2)}% deviation exceeds the 3% safety threshold`
-        : deviation >= 1
-          ? `${deviation.toFixed(2)}% deviation deserves additional review`
-          : `${deviation.toFixed(2)}% deviation is within the MVP threshold`,
-  });
+  if (!referenceAvailable) {
+    checks.push({
+      label: "Reference deviation",
+      status: "NOT SCORED",
+      scored: false,
+      message:
+        "Live reference feed unavailable — excluded from the safety score",
+    });
+  } else {
+    checks.push({
+      label: "Reference deviation",
+      status:
+        deviation >= 3
+          ? "BLOCK"
+          : deviation >= 1
+            ? "CAUTION"
+            : "PASS",
+      scored: true,
+      message:
+        deviation >= 3
+          ? `${deviation.toFixed(2)}% deviation exceeds the 3% safety threshold`
+          : deviation >= 1
+            ? `${deviation.toFixed(2)}% deviation deserves additional review`
+            : `${deviation.toFixed(2)}% deviation is within the MVP threshold`,
+    });
+  }
 
-  // 5. Liquidity check
   checks.push({
     label: "Liquidity",
     status:
@@ -93,6 +106,7 @@ export default function TradeSafetyCheck({
         : liquidity < 500_000
           ? "CAUTION"
           : "PASS",
+    scored: true,
     message:
       liquidity < 100_000
         ? `$${formatNumber(liquidity)} liquidity is below the minimum threshold`
@@ -101,7 +115,6 @@ export default function TradeSafetyCheck({
           : `$${formatNumber(liquidity)} liquidity is within the MVP threshold`,
   });
 
-  // 6. Slippage check
   checks.push({
     label: "Estimated slippage",
     status:
@@ -110,6 +123,7 @@ export default function TradeSafetyCheck({
         : slippage >= 1
           ? "CAUTION"
           : "PASS",
+    scored: true,
     message:
       slippage >= 3
         ? `${slippage.toFixed(2)}% estimated slippage exceeds the safety threshold`
@@ -118,7 +132,6 @@ export default function TradeSafetyCheck({
           : `${slippage.toFixed(2)}% estimated slippage is within the MVP threshold`,
   });
 
-  // 7. Price impact check
   checks.push({
     label: "Price impact",
     status:
@@ -127,34 +140,37 @@ export default function TradeSafetyCheck({
         : priceImpact >= 1
           ? "CAUTION"
           : "PASS",
+    scored: true,
     message:
       priceImpact >= 3
         ? `${priceImpact.toFixed(2)}% price impact exceeds the safety threshold`
         : priceImpact >= 1
           ? `${priceImpact.toFixed(2)}% price impact deserves review`
-          : `${priceImpact.toFixed(2)}% price impact is within the MVP threshold`,
+          : `${priceImpact.toFixed(6)}% price impact is within the MVP threshold`,
   });
 
-  const passCount = checks.filter(
+  const scoredChecks = checks.filter(
+    (check) => check.scored,
+  );
+
+  const passCount = scoredChecks.filter(
     (check) => check.status === "PASS",
   ).length;
 
-  const cautionCount = checks.filter(
+  const cautionCount = scoredChecks.filter(
     (check) => check.status === "CAUTION",
   ).length;
 
-  const blockCount = checks.filter(
+  const blockCount = scoredChecks.filter(
     (check) => check.status === "BLOCK",
   ).length;
 
-  const hasBlock = blockCount > 0;
-  const hasCaution = cautionCount > 0;
-
-  const overallStatus: SafetyLevel = hasBlock
-    ? "BLOCK"
-    : hasCaution
-      ? "CAUTION"
-      : "PASS";
+  const overallStatus: SafetyLevel =
+    blockCount > 0
+      ? "BLOCK"
+      : cautionCount > 0
+        ? "CAUTION"
+        : "PASS";
 
   const overallText =
     overallStatus === "PASS"
@@ -246,10 +262,12 @@ export default function TradeSafetyCheck({
         <span className="font-medium text-zinc-300">
           Transparent MVP rules:
         </span>{" "}
-        StockShield checks wallet connection, gas availability, underlying
-        market status, price deviation, liquidity, estimated slippage and
-        price impact before execution. These heuristic checks provide
-        execution context and do not guarantee trade outcomes.
+        StockShield checks wallet connection, gas availability,
+        underlying market status, available reference-price deviation,
+        liquidity, estimated slippage and price impact before execution.
+        Unavailable reference data is excluded from scoring. These
+        heuristic checks provide execution context and do not guarantee
+        trade outcomes.
       </div>
     </div>
   );
@@ -277,13 +295,19 @@ function SummaryBox({
   );
 }
 
-function StatusBadge({ status }: { status: SafetyLevel }) {
+function StatusBadge({
+  status,
+}: {
+  status: DisplayStatus;
+}) {
   const className =
     status === "PASS"
       ? "border border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
       : status === "CAUTION"
         ? "border border-amber-400/20 bg-amber-400/10 text-amber-300"
-        : "border border-red-400/20 bg-red-400/10 text-red-300";
+        : status === "BLOCK"
+          ? "border border-red-400/20 bg-red-400/10 text-red-300"
+          : "border border-sky-400/20 bg-sky-400/10 text-sky-300";
 
   return (
     <span

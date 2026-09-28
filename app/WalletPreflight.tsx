@@ -114,6 +114,7 @@ const permit2Abi = [
 type Props = {
   address: `0x${string}` | null;
   tradeAmount: number;
+  onReadinessChange?: (ready: boolean) => void;
 };
 
 type Permit2State = {
@@ -125,6 +126,7 @@ type Permit2State = {
 export default function WalletPreflight({
   address,
   tradeAmount,
+  onReadinessChange,
 }: Props) {
   const [usdtBalance, setUsdtBalance] =
     useState<bigint | null>(null);
@@ -235,7 +237,7 @@ export default function WalletPreflight({
   function handleAuthorizeRouterPreview() {
     setAuthorizing(true);
     setAuthorizationStatus(
-      "READY TO REQUEST Ã¢â‚¬â€ Wallet confirmation will be required. No transaction has been sent."
+      "READY TO REQUEST ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Wallet confirmation will be required. No transaction has been sent."
     );
 
     setTimeout(() => {
@@ -263,7 +265,7 @@ export default function WalletPreflight({
 
     if (usdtBalance === null || usdtBalance < requestedAmount) {
       setAuthorizationStatus(
-        "BLOCKED Ã¢â‚¬â€ Insufficient USDT balance. No wallet request was sent."
+        "BLOCKED ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Insufficient USDT balance. No wallet request was sent."
       );
       return;
     }
@@ -271,7 +273,7 @@ export default function WalletPreflight({
     try {
       setAuthorizing(true);
       setAuthorizationStatus(
-        "WAITING FOR WALLET Ã¢â‚¬â€ Review the Permit2 authorization carefully."
+        "WAITING FOR WALLET ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Review the Permit2 authorization carefully."
       );
 
       const walletClient = createWalletClient({
@@ -284,7 +286,7 @@ export default function WalletPreflight({
 
       if (chainId !== bsc.id) {
         setAuthorizationStatus(
-          "WRONG NETWORK Ã¢â‚¬â€ Switch MetaMask to BNB Smart Chain first."
+          "WRONG NETWORK ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Switch MetaMask to BNB Smart Chain first."
         );
         return;
       }
@@ -369,7 +371,7 @@ export default function WalletPreflight({
           : "Authorization request failed.";
 
       setAuthorizationStatus(
-        `AUTHORIZATION NOT SENT / FAILED Ã¢â‚¬â€ ${message}`
+        `AUTHORIZATION NOT SENT / FAILED ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${message}`
       );
     } finally {
       setAuthorizing(false);
@@ -516,7 +518,7 @@ export default function WalletPreflight({
                 }
               >
                 {permit2Expiration}
-                {" Ã‚Â· "}
+                {" Ãƒâ€šÃ‚Â· "}
                 {permit2NotExpired
                   ? "ACTIVE"
                   : "EXPIRED / NOT AUTHORIZED"}
@@ -597,7 +599,7 @@ export default function WalletPreflight({
             </div>
 
             <div className="text-xs text-emerald-300">
-              READ ONLY Ã‚Â· No approval, signature, or transaction requested
+              READ ONLY Ãƒâ€šÃ‚Â· No approval, signature, or transaction requested
             </div>
 
             <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">

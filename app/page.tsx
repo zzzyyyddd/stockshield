@@ -1286,7 +1286,7 @@ export default function Home() {
                     liveQuote?.marketImpactPercent ??
                     0
                   }
-                  executionReady={walletPreflightReady}
+                  executionReady={executionGateReady}
                 />
 
                 {!referenceIsLive && (

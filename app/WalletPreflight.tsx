@@ -282,6 +282,18 @@ export default function WalletPreflight({
         transport: custom(window.ethereum),
       });
 
+      const activeAccounts = await walletClient.getAddresses();
+
+      if (
+        activeAccounts.length === 0 ||
+        activeAccounts[0].toLowerCase() !== address.toLowerCase()
+      ) {
+        setAuthorizationStatus(
+          "ACCOUNT MISMATCH - Active wallet account does not match the account connected to StockShield."
+        );
+        return;
+      }
+
       const chainId = await walletClient.getChainId();
 
       if (chainId !== bsc.id) {

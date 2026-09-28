@@ -295,6 +295,30 @@ export async function GET(request: NextRequest) {
       ),
     );
 
+    let simulationStatus:
+      | "SIMULATABLE"
+      | "BLOCKED_BY_WALLET_STATE"
+      | "FAILED" = "FAILED";
+
+    let simulationError: string | null = null;
+
+    try {
+      await client.call({
+        account: recipient as `0x${string}`,
+        to: "0xd9C500DfF816a1Da21A48A732d3498Bf09dc9AEB",
+        data: parameters.calldata as `0x${string}`,
+        value: BigInt(0),
+      });
+
+      simulationStatus = "SIMULATABLE";
+    } catch (simulationFailure) {
+      simulationStatus = "BLOCKED_BY_WALLET_STATE";
+      simulationError =
+        simulationFailure instanceof Error
+          ? simulationFailure.message
+          : "Universal Router simulation reverted.";
+    }
+
     return NextResponse.json({
       success: true,
 
@@ -370,6 +394,13 @@ export async function GET(request: NextRequest) {
           quoteSimulation.result[3].toString(),
       },
 
+      simulation: {
+        status: simulationStatus,
+        router:
+          "0xd9C500DfF816a1Da21A48A732d3498Bf09dc9AEB",
+        error: simulationError,
+      },
+
       safety: {
         readOnly: true,
         walletRequested: false,
@@ -400,6 +431,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 
 
 

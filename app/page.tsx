@@ -316,6 +316,12 @@ export default function Home() {
   const referenceIsLive =
     apiStatus === "connected";
 
+  const executionGateReady =
+    wallet.connected &&
+    correctNetwork &&
+    walletPreflightReady &&
+    swapPreview?.simulation.status === "SIMULATABLE";
+
   /*
    * Important:
    * demo reference/deviation data must
@@ -1290,8 +1296,9 @@ export default function Home() {
                   disabled
                   className="mt-4 w-full cursor-not-allowed rounded-xl border border-white/10 bg-white/70 py-3 font-bold text-black opacity-70"
                 >
-                  Execute Trade -
-                  Disabled in MVP
+                  {executionGateReady
+                    ? "Execute Trade - Ready (MVP Disabled)"
+                    : "Execute Trade - Blocked"}
                 </button>
 
                 <div className="mt-2 text-center text-xs text-zinc-600">

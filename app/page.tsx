@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import WalletButton, { type WalletState } from "./WalletButton";
 import TradeSafetyCheck from "./TradeSafetyCheck";
+import WalletPreflight from "./WalletPreflight";
 
 type Stock = {
   symbol: string;
@@ -1093,7 +1094,13 @@ export default function Home() {
 
             {simulated && (
               <div className="mt-6">
-                <TradeSafetyCheck
+                <div className="mb-4">
+                    <WalletPreflight
+                      address={wallet.address as `0x${string}` | null}
+                    />
+                  </div>
+
+                  <TradeSafetyCheck
                   walletConnected={
                     wallet.connected &&
                     correctNetwork
@@ -1216,4 +1223,6 @@ function Row({
     </div>
   );
 }
+
+
 

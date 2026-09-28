@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import WalletButton, { type WalletState } from "./WalletButton";
@@ -1092,7 +1092,7 @@ export default function Home() {
 
                       <Row
                         label="Execution deadline"
-                        value="20 minutes after wallet confirmation"
+                        value="20 minutes from transaction preparation"
                       />
 
                       {liveQuote?.blockNumber && (

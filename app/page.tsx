@@ -76,6 +76,42 @@ type QuoteResult = {
   blockNumber: string | null;
 };
 
+type SwapPreviewResult = {
+  provider: string;
+  chain: {
+    name: string;
+    chainId: number;
+    blockNumber: string;
+  };
+  quote: {
+    amountIn: string;
+    expectedOut: string;
+    minimumReceived: string;
+    maxSlippagePercent: number;
+  };
+  executionProtection: {
+    deadline: number;
+    deadlineMeaning: string;
+    exactInput: boolean;
+    payerIsUser: boolean;
+  };
+  universalRouter: {
+    calldata: string;
+    value: string;
+  };
+  simulation: {
+    status: string;
+    router: string;
+    error: string | null;
+  };
+  safety: {
+    readOnly: boolean;
+    walletRequested: boolean;
+    approvalRequested: boolean;
+    signatureRequested: boolean;
+    transactionSubmitted: boolean;
+  };
+};
 type ApiStatus =
   | "checking"
   | "connected"
@@ -125,6 +161,9 @@ export default function Home() {
 
   const [liveQuote, setLiveQuote] =
     useState<QuoteResult | null>(null);
+
+  const [swapPreview, setSwapPreview] =
+    useState<SwapPreviewResult | null>(null);
 
   const [apiStatus, setApiStatus] =
     useState<ApiStatus>("checking");
@@ -411,6 +450,48 @@ export default function Home() {
             ? result.blockNumber
             : null,
       });
+
+      setSwapPreview(null);
+
+      if (wallet.address) {
+        const previewResponse = await fetch(
+          `/api/swap-preview?amount=${encodeURIComponent(
+            amount,
+          )}&recipient=${encodeURIComponent(
+            wallet.address,
+          )}`,
+          {
+            cache: "no-store",
+          },
+        );
+
+        const previewResult =
+          await previewResponse.json();
+
+        if (
+          !previewResponse.ok ||
+          previewResult?.success !== true
+        ) {
+          throw new Error(
+            typeof previewResult?.error === "string"
+              ? previewResult.error
+              : "Read-only swap preview was not returned.",
+          );
+        }
+
+        setSwapPreview({
+          provider: previewResult.provider,
+          chain: previewResult.chain,
+          quote: previewResult.quote,
+          executionProtection:
+            previewResult.executionProtection,
+          universalRouter:
+            previewResult.universalRouter,
+          simulation:
+            previewResult.simulation,
+          safety: previewResult.safety,
+        });
+      }
 
       setSimulated(true);
     } catch (error) {

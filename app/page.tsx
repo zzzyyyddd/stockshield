@@ -344,6 +344,7 @@ export default function Home() {
   async function handleSimulate() {
     setSimulated(false);
     setLiveQuote(null);
+    setSwapPreview(null);
     setQuoteError(null);
 
     const amountNumber =
@@ -673,6 +674,10 @@ export default function Home() {
                         null,
                       );
 
+                      setSwapPreview(
+                        null,
+                      );
+
                       setQuoteError(
                         null,
                       );
@@ -998,6 +1003,10 @@ export default function Home() {
                       );
 
                       setLiveQuote(
+                        null,
+                      );
+
+                      setSwapPreview(
                         null,
                       );
 

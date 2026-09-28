@@ -1175,10 +1175,9 @@ export default function Home() {
                 </button>
 
                 <div className="mt-2 text-center text-xs text-zinc-600">
-                  No transaction will
-                  be submitted and no
-                  token approval will
-                  be requested.
+                  Trade execution is disabled in this MVP.
+                  Wallet authorization is handled separately
+                  in the preflight step.
                 </div>
               </div>
             )}

@@ -438,6 +438,18 @@ export default function WalletPreflight({
             <div className="text-xs text-emerald-300">
               READ ONLY · No approval, signature, or transaction requested
             </div>
+
+            <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">
+              <div className="text-xs font-semibold text-amber-300">
+                Action required before execution
+              </div>
+              <div className="mt-1 text-xs text-zinc-400">
+                Wallet needs enough USDT and an active Permit2 → PancakeSwap V3 Router authorization before a real swap can execute.
+              </div>
+              <div className="mt-2 text-xs text-zinc-500">
+                StockShield will never request a private key. Any approval or swap must be confirmed by you in your wallet.
+              </div>
+            </div>
           </div>
         )}
 

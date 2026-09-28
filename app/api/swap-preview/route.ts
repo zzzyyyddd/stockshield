@@ -298,6 +298,7 @@ export async function GET(request: NextRequest) {
     let simulationStatus:
       | "SIMULATABLE"
       | "BLOCKED_BY_WALLET_STATE"
+      | "PERMIT2_AUTHORIZATION_EXPIRED"
       | "FAILED" = "FAILED";
 
     let simulationError: string | null = null;
@@ -312,11 +313,22 @@ export async function GET(request: NextRequest) {
 
       simulationStatus = "SIMULATABLE";
     } catch (simulationFailure) {
-      simulationStatus = "BLOCKED_BY_WALLET_STATE";
       simulationError =
         simulationFailure instanceof Error
           ? simulationFailure.message
           : "Universal Router simulation reverted.";
+
+      if (
+        simulationError
+          .toLowerCase()
+          .includes("0xd81b2f2e")
+      ) {
+        simulationStatus =
+          "PERMIT2_AUTHORIZATION_EXPIRED";
+      } else {
+        simulationStatus =
+          "BLOCKED_BY_WALLET_STATE";
+      }
     }
 
     return NextResponse.json({

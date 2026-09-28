@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import {
   createPublicClient,
+  createWalletClient,
+  custom,
   formatUnits,
   http,
   parseUnits,
@@ -241,6 +243,87 @@ export default function WalletPreflight({
     }, 500);
   }
 
+  async function handleRequestRouterAuthorization() {
+    if (!address) {
+      setAuthorizationStatus("Wallet is not connected.");
+      return;
+    }
+
+    if (!window.ethereum) {
+      setAuthorizationStatus("MetaMask or another EVM wallet was not detected.");
+      return;
+    }
+
+    if (!Number.isFinite(tradeAmount) || tradeAmount <= 0) {
+      setAuthorizationStatus("Enter a valid trade amount first.");
+      return;
+    }
+
+    const requestedAmount = parseUnits(tradeAmount.toString(), 18);
+
+    if (usdtBalance === null || usdtBalance < requestedAmount) {
+      setAuthorizationStatus(
+        "BLOCKED — Insufficient USDT balance. No wallet request was sent."
+      );
+      return;
+    }
+
+    try {
+      setAuthorizing(true);
+      setAuthorizationStatus(
+        "WAITING FOR WALLET — Review the Permit2 authorization carefully."
+      );
+
+      const walletClient = createWalletClient({
+        account: address,
+        chain: bsc,
+        transport: custom(window.ethereum),
+      });
+
+      const chainId = await walletClient.getChainId();
+
+      if (chainId !== bsc.id) {
+        setAuthorizationStatus(
+          "WRONG NETWORK — Switch MetaMask to BNB Smart Chain first."
+        );
+        return;
+      }
+
+      const authorizationAmount = parseUnits(
+        tradeAmount.toString(),
+        18,
+      );
+
+      const expiration = Math.floor(Date.now() / 1000) + 60 * 60;
+
+      const hash = await walletClient.writeContract({
+        address: PANCAKESWAP_PERMIT2,
+        abi: permit2Abi,
+        functionName: "approve",
+        args: [
+          USDT,
+          PANCAKESWAP_V3_ROUTER,
+          authorizationAmount,
+          expiration,
+        ],
+      });
+
+      setAuthorizationStatus(
+        `AUTHORIZATION SUBMITTED — ${hash}`
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Authorization request failed.";
+
+      setAuthorizationStatus(
+        `AUTHORIZATION NOT SENT / FAILED — ${message}`
+      );
+    } finally {
+      setAuthorizing(false);
+    }
+  }
   const validTradeAmount =
     Number.isFinite(tradeAmount) &&
     tradeAmount > 0;
@@ -488,6 +571,20 @@ export default function WalletPreflight({
                 </button>
               )}
 
+              {authorizationStatus?.startsWith("READY TO REQUEST") &&
+                !hasEnoughRouterAllowance && (
+                  <button
+                    type="button"
+                    onClick={handleRequestRouterAuthorization}
+                    disabled={authorizing}
+                    className="mt-2 w-full rounded-lg border border-orange-400/40 bg-orange-400/10 px-3 py-2 text-xs font-semibold text-orange-300 disabled:opacity-50"
+                  >
+                    {authorizing
+                      ? "Waiting..."
+                      : "Request Router Authorization"}
+                  </button>
+                )}
+
               {authorizationStatus && (
                 <div className="mt-2 text-xs text-amber-200">
                   {authorizationStatus}
@@ -505,6 +602,11 @@ export default function WalletPreflight({
     </div>
   );
 }
+
+
+
+
+
 
 
 

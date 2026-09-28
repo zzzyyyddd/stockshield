@@ -1191,6 +1191,45 @@ export default function Home() {
 
             {simulated && (
               <div className="mt-6">
+                {swapPreview && (
+                  <div className="mb-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.04] p-5">
+                    <div className="text-xs font-medium uppercase tracking-[0.18em] text-cyan-300">
+                      Execution Simulation
+                    </div>
+
+                    <div className="mt-3 space-y-2 text-xs">
+                      <Row
+                        label="Status"
+                        value={swapPreview.simulation.status}
+                      />
+                      <Row
+                        label="Provider"
+                        value={swapPreview.provider}
+                      />
+                      <Row
+                        label="Minimum received"
+                        value={`${swapPreview.quote.minimumReceived} NVDAB`}
+                      />
+                      <Row
+                        label="Max slippage"
+                        value={`${swapPreview.quote.maxSlippagePercent}%`}
+                      />
+                      <Row
+                        label="Protection deadline"
+                        value={swapPreview.executionProtection.deadlineMeaning}
+                      />
+                      <Row
+                        label="Mode"
+                        value="READ ONLY"
+                      />
+                    </div>
+
+                    <div className="mt-3 text-xs leading-5 text-zinc-500">
+                      Universal Router simulation only. No signature or swap transaction was requested.
+                    </div>
+                  </div>
+                )}
+
                 <div className="mb-4">
                     <WalletPreflight
                       address={wallet.address as `0x${string}` | null}

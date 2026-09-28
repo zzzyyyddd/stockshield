@@ -64,6 +64,18 @@ const erc20Abi = [
 const permit2Abi = [
   {
     type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint160" },
+      { name: "expiration", type: "uint48" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "allowance",
     stateMutability: "view",
     inputs: [
@@ -123,6 +135,10 @@ export default function WalletPreflight({
 
   const [loading, setLoading] =
     useState(false);
+
+  const [authorizing, setAuthorizing] = useState(false);
+  const [authorizationStatus, setAuthorizationStatus] =
+    useState<string | null>(null);
 
   const [error, setError] =
     useState<string | null>(null);
@@ -213,6 +229,17 @@ export default function WalletPreflight({
       active = false;
     };
   }, [address]);
+
+  function handleAuthorizeRouterPreview() {
+    setAuthorizing(true);
+    setAuthorizationStatus(
+      "READY TO REQUEST — Wallet confirmation will be required. No transaction has been sent."
+    );
+
+    setTimeout(() => {
+      setAuthorizing(false);
+    }, 500);
+  }
 
   const validTradeAmount =
     Number.isFinite(tradeAmount) &&
@@ -449,6 +476,23 @@ export default function WalletPreflight({
               <div className="mt-2 text-xs text-zinc-500">
                 StockShield will never request a private key. Any approval or swap must be confirmed by you in your wallet.
               </div>
+
+              {!hasEnoughRouterAllowance && (
+                <button
+                  type="button"
+                  onClick={handleAuthorizeRouterPreview}
+                  disabled={authorizing}
+                  className="mt-3 w-full rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-300 disabled:opacity-50"
+                >
+                  {authorizing ? "Preparing..." : "Preview Router Authorization"}
+                </button>
+              )}
+
+              {authorizationStatus && (
+                <div className="mt-2 text-xs text-amber-200">
+                  {authorizationStatus}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -461,3 +505,8 @@ export default function WalletPreflight({
     </div>
   );
 }
+
+
+
+
+

@@ -21,6 +21,7 @@ type TradeSafetyCheckProps = {
   liquidityDataAvailable?: boolean;
   slippage: number;
   priceImpact: number;
+  executionReady: boolean;
 };
 
 export default function TradeSafetyCheck({
@@ -34,8 +35,18 @@ export default function TradeSafetyCheck({
   liquidityDataAvailable = true,
   slippage,
   priceImpact,
+  executionReady,
 }: TradeSafetyCheckProps) {
   const checks: SafetyItem[] = [];
+
+  checks.push({
+    label: "Execution readiness",
+    status: executionReady ? "PASS" : "BLOCK",
+    scored: true,
+    message: executionReady
+      ? "Wallet balance and token permissions are ready"
+      : "Wallet preflight is not ready for execution",
+  });
 
   checks.push({
     label: "Wallet connection",
@@ -61,7 +72,7 @@ export default function TradeSafetyCheck({
       : bnbBalance <= 0
         ? "No BNB available for network gas"
         : bnbBalance < 0.0005
-          ? `${bnbBalance.toFixed(6)} BNB — gas balance is very low`
+          ? `${bnbBalance.toFixed(6)} BNB Ã¢â‚¬â€ gas balance is very low`
           : `${bnbBalance.toFixed(6)} BNB available for gas`,
   });
 
@@ -71,7 +82,7 @@ export default function TradeSafetyCheck({
       status: "NOT SCORED",
       scored: false,
       message:
-        "Live market-status data unavailable — excluded from the safety score",
+        "Live market-status data unavailable Ã¢â‚¬â€ excluded from the safety score",
     });
   } else {
     checks.push({
@@ -84,7 +95,7 @@ export default function TradeSafetyCheck({
       message:
         marketStatus === "OPEN"
           ? "Underlying market is open"
-          : "Underlying market is closed — reference pricing may be less current",
+          : "Underlying market is closed Ã¢â‚¬â€ reference pricing may be less current",
     });
   }
 
@@ -94,7 +105,7 @@ export default function TradeSafetyCheck({
       status: "NOT SCORED",
       scored: false,
       message:
-        "Live reference feed unavailable — excluded from the safety score",
+        "Live reference feed unavailable Ã¢â‚¬â€ excluded from the safety score",
     });
   } else {
     checks.push({
@@ -121,7 +132,7 @@ export default function TradeSafetyCheck({
       status: "NOT SCORED",
       scored: false,
       message:
-        "Live comparable liquidity data unavailable — excluded from the safety score",
+        "Live comparable liquidity data unavailable Ã¢â‚¬â€ excluded from the safety score",
     });
   } else {
     checks.push({

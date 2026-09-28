@@ -1097,6 +1097,7 @@ export default function Home() {
                 <div className="mb-4">
                     <WalletPreflight
                       address={wallet.address as `0x${string}` | null}
+                      tradeAmount={Number(amount) || 0}
                     />
                   </div>
 
@@ -1223,6 +1224,7 @@ function Row({
     </div>
   );
 }
+
 
 
 

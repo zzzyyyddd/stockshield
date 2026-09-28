@@ -525,7 +525,7 @@ export default function Home() {
               "connected" && (
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-300">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                LIVE Ãƒâ€šÃ‚Â· Binance
+                LIVE - Binance
                 Web3 API
               </div>
             )}
@@ -534,7 +534,7 @@ export default function Home() {
               "fallback" && (
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/[0.08] px-3 py-1.5 text-xs font-medium text-amber-300">
                 <span className="h-2 w-2 rounded-full bg-amber-300" />
-                DEMO Ãƒâ€šÃ‚Â· Binance RWA
+                DEMO - Binance RWA
                 API unavailable in
                 this environment
               </div>
@@ -660,7 +660,7 @@ export default function Home() {
                 </div>
 
                 <div className="text-sm text-zinc-500">
-                  {selected.name} Ãƒâ€šÃ‚Â·{" "}
+                  {selected.name} -{" "}
                   {
                     selected.provider
                   }
@@ -684,8 +684,8 @@ export default function Home() {
                   {simulated &&
                   liveQuote?.spotPrice !=
                     null
-                    ? "LIVE Ãƒâ€šÃ‚Â· PancakeSwap pool spot price"
-                    : "Demo price Ãƒâ€šÃ‚Â· run check for live pool price"}
+                    ? "LIVE - PancakeSwap pool spot price"
+                    : "Demo price - run check for live pool price"}
                 </div>
               </div>
             </div>
@@ -742,8 +742,7 @@ export default function Home() {
               <div className="mb-6 rounded-2xl border border-sky-400/20 bg-sky-400/[0.06] p-5">
                 <div className="flex gap-3">
                   <div className="text-xl">
-                    ÃƒÂ¢Ã¢â‚¬Å“Ã‹Å“
-                  </div>
+                    i</div>
 
                   <div>
                     <div className="font-semibold text-sky-200">
@@ -775,8 +774,7 @@ export default function Home() {
               <div className="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5">
                 <div className="flex gap-3">
                   <div className="text-xl">
-                    ÃƒÂ¢Ã…Â¡Ã‚Â 
-                  </div>
+                    !</div>
 
                   <div>
                     <div className="font-semibold text-amber-200">
@@ -1172,7 +1170,7 @@ export default function Home() {
                   disabled
                   className="mt-4 w-full cursor-not-allowed rounded-xl border border-white/10 bg-white/70 py-3 font-bold text-black opacity-70"
                 >
-                  Execute Trade Ãƒâ€šÃ‚Â·
+                  Execute Trade -
                   Disabled in MVP
                 </button>
 
@@ -1186,7 +1184,7 @@ export default function Home() {
             )}
 
             <div className="mt-6 text-center text-xs text-zinc-600">
-              StockShield MVP Ãƒâ€šÃ‚Â· Live
+              StockShield MVP - Live
               and demo data are
               reported separately
             </div>

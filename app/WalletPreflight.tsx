@@ -237,7 +237,7 @@ export default function WalletPreflight({
   function handleAuthorizeRouterPreview() {
     setAuthorizing(true);
     setAuthorizationStatus(
-      "READY TO REQUEST ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Wallet confirmation will be required. No transaction has been sent."
+      "READY TO REQUEST - Review the authorization details below before continuing."
     );
 
     setTimeout(() => {
@@ -265,7 +265,7 @@ export default function WalletPreflight({
 
     if (usdtBalance === null || usdtBalance < requestedAmount) {
       setAuthorizationStatus(
-        "BLOCKED ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Insufficient USDT balance. No wallet request was sent."
+        "BLOCKED - Insufficient USDT balance. No wallet request was sent."
       );
       return;
     }
@@ -273,7 +273,7 @@ export default function WalletPreflight({
     try {
       setAuthorizing(true);
       setAuthorizationStatus(
-        "WAITING FOR WALLET ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Review the Permit2 authorization carefully."
+        "WAITING FOR WALLET - Confirm or reject the authorization request in your wallet."
       );
 
       const walletClient = createWalletClient({
@@ -286,7 +286,7 @@ export default function WalletPreflight({
 
       if (chainId !== bsc.id) {
         setAuthorizationStatus(
-          "WRONG NETWORK ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Switch MetaMask to BNB Smart Chain first."
+          "WRONG NETWORK - Switch your wallet to BNB Smart Chain before continuing."
         );
         return;
       }
@@ -371,7 +371,7 @@ export default function WalletPreflight({
           : "Authorization request failed.";
 
       setAuthorizationStatus(
-        `AUTHORIZATION NOT SENT / FAILED ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${message}`
+        `AUTHORIZATION NOT SENT / FAILED - ${message}`
       );
     } finally {
       setAuthorizing(false);
@@ -466,7 +466,7 @@ export default function WalletPreflight({
               <div className="mt-1 font-semibold text-white">
                 {Number(
                   formatUnits(usdtBalance, 18),
-                ).toFixed(6)}{" "}
+                ).toFixed(6)}{" - "}
                 USDT
               </div>
             </div>
@@ -491,7 +491,7 @@ export default function WalletPreflight({
 
             <div className="border-t border-white/10 pt-4">
               <div className="text-xs font-medium text-zinc-400">
-                Permit2 ? PancakeSwap Universal Router
+                Permit2 - PancakeSwap Universal Router
               </div>
 
               <div className="mt-2 text-xs text-zinc-500">
@@ -522,7 +522,7 @@ export default function WalletPreflight({
                 }
               >
                 {permit2Expiration}
-                {" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· "}
+                {" - "}
                 {permit2NotExpired
                   ? "ACTIVE"
                   : "EXPIRED / NOT AUTHORIZED"}
@@ -535,10 +535,10 @@ export default function WalletPreflight({
 
             <div className="border-t border-white/10 pt-4">
               <div className="text-xs text-zinc-500">
-                Trade readiness for{" "}
+                Trade readiness for{" - "}
                 {validTradeAmount
                   ? tradeAmount.toFixed(2)
-                  : "0.00"}{" "}
+                  : "0.00"}{" - "}
                 USDT
               </div>
 
@@ -555,7 +555,7 @@ export default function WalletPreflight({
                         : "text-xs text-amber-300"
                     }
                   >
-                    USDT balance:{" "}
+                    USDT balance:{" - "}
                     {hasEnoughBalance
                       ? "SUFFICIENT"
                       : "INSUFFICIENT"}
@@ -568,7 +568,7 @@ export default function WalletPreflight({
                         : "text-xs text-amber-300"
                     }
                   >
-                    ERC-20 ? Permit2:{" "}
+                    ERC-20 ? Permit2:{" - "}
                     {hasEnoughErc20Allowance
                       ? "SUFFICIENT"
                       : "INSUFFICIENT"}
@@ -581,7 +581,7 @@ export default function WalletPreflight({
                         : "text-xs text-amber-300"
                     }
                   >
-                    Permit2 ? Router:{" "}
+                    Permit2 ? Router:{" - "}
                     {hasEnoughRouterAllowance
                       ? "AUTHORIZED"
                       : "NOT AUTHORIZED"}
@@ -603,7 +603,7 @@ export default function WalletPreflight({
             </div>
 
             <div className="text-xs text-emerald-300">
-              READ ONLY ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· No approval, signature, or transaction requested
+              READ ONLY - No approval, signature, or transaction requested
             </div>
 
             <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">
@@ -611,7 +611,7 @@ export default function WalletPreflight({
                 Action required before execution
               </div>
               <div className="mt-1 text-xs text-zinc-400">
-                Wallet needs enough USDT and an active Permit2 ? PancakeSwap Universal Router authorization before a real swap can execute.
+                Wallet needs enough USDT and an active Permit2 - PancakeSwap Universal Router authorization before a real swap can execute.
               </div>
               <div className="mt-2 text-xs text-zinc-500">
                 StockShield will never request a private key. Any approval or swap must be confirmed by you in your wallet.
@@ -628,7 +628,7 @@ export default function WalletPreflight({
                 </button>
               )}
 
-              {authorizationStatus?.startsWith("READY TO REQUEST") &&
+              {authorizationStatus?.startsWith("READY TO REQUEST - Review the authorization details below before continuing.") &&
                 !hasEnoughRouterAllowance && (
                   <div className="mt-2">
                     <div className="mb-3 rounded-lg border border-amber-400/20 bg-black/20 p-3">

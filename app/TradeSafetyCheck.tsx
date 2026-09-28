@@ -59,22 +59,18 @@ export default function TradeSafetyCheck({
 
   checks.push({
     label: "BNB gas balance",
-    status: !walletConnected
-      ? "BLOCK"
-      : bnbBalance <= 0
-        ? "BLOCK"
-        : bnbBalance < 0.0005
-          ? "CAUTION"
-          : "PASS",
+    status: !walletConnected ? "BLOCK" : bnbBalance <= 0 ? "BLOCK" : bnbBalance < 0.0005 ? "CAUTION" : "PASS",
     scored: true,
     message: !walletConnected
       ? "Gas balance unavailable until wallet is connected"
       : bnbBalance <= 0
         ? "No BNB available for network gas"
         : bnbBalance < 0.0005
-          ? `${bnbBalance.toFixed(6)} BNB ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gas balance is very low`
-          : `${bnbBalance.toFixed(6)} BNB available for gas`,
+          ? `${bnbBalance.toFixed(6)} BNB - low gas balance`
+          : `${bnbBalance.toFixed(6)} BNB available for network gas`,
   });
+
+
 
   if (!marketDataAvailable) {
     checks.push({
@@ -82,7 +78,7 @@ export default function TradeSafetyCheck({
       status: "NOT SCORED",
       scored: false,
       message:
-        "Live market-status data unavailable ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â excluded from the safety score",
+        "Live market-status data unavailable - excluded from the safety score",
     });
   } else {
     checks.push({
@@ -95,7 +91,7 @@ export default function TradeSafetyCheck({
       message:
         marketStatus === "OPEN"
           ? "Underlying market is open"
-          : "Underlying market is closed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â reference pricing may be less current",
+          : "Underlying market is closed - review reference-price freshness",
     });
   }
 
@@ -105,7 +101,7 @@ export default function TradeSafetyCheck({
       status: "NOT SCORED",
       scored: false,
       message:
-        "Live reference feed unavailable ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â excluded from the safety score",
+        "Live reference feed unavailable - excluded from the safety score",
     });
   } else {
     checks.push({
@@ -132,7 +128,7 @@ export default function TradeSafetyCheck({
       status: "NOT SCORED",
       scored: false,
       message:
-        "Live comparable liquidity data unavailable ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â excluded from the safety score",
+        "Live comparable liquidity data unavailable - excluded from the safety score",
     });
   } else {
     checks.push({

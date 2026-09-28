@@ -72,7 +72,7 @@ export default function TradeSafetyCheck({
       : bnbBalance <= 0
         ? "No BNB available for network gas"
         : bnbBalance < 0.0005
-          ? `${bnbBalance.toFixed(6)} BNB Ã¢â‚¬â€ gas balance is very low`
+          ? `${bnbBalance.toFixed(6)} BNB ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gas balance is very low`
           : `${bnbBalance.toFixed(6)} BNB available for gas`,
   });
 
@@ -82,7 +82,7 @@ export default function TradeSafetyCheck({
       status: "NOT SCORED",
       scored: false,
       message:
-        "Live market-status data unavailable Ã¢â‚¬â€ excluded from the safety score",
+        "Live market-status data unavailable ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â excluded from the safety score",
     });
   } else {
     checks.push({
@@ -95,7 +95,7 @@ export default function TradeSafetyCheck({
       message:
         marketStatus === "OPEN"
           ? "Underlying market is open"
-          : "Underlying market is closed Ã¢â‚¬â€ reference pricing may be less current",
+          : "Underlying market is closed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â reference pricing may be less current",
     });
   }
 
@@ -105,7 +105,7 @@ export default function TradeSafetyCheck({
       status: "NOT SCORED",
       scored: false,
       message:
-        "Live reference feed unavailable Ã¢â‚¬â€ excluded from the safety score",
+        "Live reference feed unavailable ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â excluded from the safety score",
     });
   } else {
     checks.push({
@@ -132,7 +132,7 @@ export default function TradeSafetyCheck({
       status: "NOT SCORED",
       scored: false,
       message:
-        "Live comparable liquidity data unavailable Ã¢â‚¬â€ excluded from the safety score",
+        "Live comparable liquidity data unavailable ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â excluded from the safety score",
     });
   } else {
     checks.push({
@@ -155,19 +155,9 @@ export default function TradeSafetyCheck({
 
   checks.push({
     label: "Estimated slippage (MVP)",
-    status:
-      slippage >= 3
-        ? "BLOCK"
-        : slippage >= 1
-          ? "CAUTION"
-          : "PASS",
-    scored: true,
-    message:
-      slippage >= 3
-        ? `${slippage.toFixed(2)}% MVP slippage estimate exceeds the safety threshold`
-        : slippage >= 1
-          ? `${slippage.toFixed(2)}% MVP slippage estimate deserves review`
-          : `${slippage.toFixed(2)}% MVP slippage estimate is within the threshold`,
+    status: "NOT SCORED",
+    scored: false,
+    message: `${slippage.toFixed(2)}% is an MVP estimate only and is excluded from the safety score`,
   });
 
   checks.push({

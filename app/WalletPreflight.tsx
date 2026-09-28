@@ -573,16 +573,64 @@ export default function WalletPreflight({
 
               {authorizationStatus?.startsWith("READY TO REQUEST") &&
                 !hasEnoughRouterAllowance && (
-                  <button
-                    type="button"
-                    onClick={handleRequestRouterAuthorization}
-                    disabled={authorizing}
-                    className="mt-2 w-full rounded-lg border border-orange-400/40 bg-orange-400/10 px-3 py-2 text-xs font-semibold text-orange-300 disabled:opacity-50"
-                  >
-                    {authorizing
-                      ? "Waiting..."
-                      : "Request Router Authorization"}
-                  </button>
+                  <div className="mt-2">
+                    <div className="mb-3 rounded-lg border border-amber-400/20 bg-black/20 p-3">
+                      <div className="mb-2 text-xs font-semibold text-amber-300">
+                        Authorization Preview
+                      </div>
+
+                      <div className="space-y-1 text-xs text-slate-400">
+                        <div className="flex justify-between gap-4">
+                          <span>Amount</span>
+                          <span className="text-slate-200">
+                            {tradeAmount.toFixed(2)} USDT
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+                          <span>Token</span>
+                          <span className="text-slate-200">USDT</span>
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+                          <span>Spender</span>
+                          <span className="text-slate-200">
+                            PancakeSwap V3 Router
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+                          <span>Network</span>
+                          <span className="text-slate-200">
+                            BNB Smart Chain
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+                          <span>Expires</span>
+                          <span className="text-slate-200">1 hour</span>
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+                          <span>Permission</span>
+                          <span className="text-right text-emerald-300">
+                            Exact trade amount - NOT unlimited
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleRequestRouterAuthorization}
+                      disabled={authorizing}
+                      className="w-full rounded-lg border border-orange-400/40 bg-orange-400/10 px-3 py-2 text-xs font-semibold text-orange-300 disabled:opacity-50"
+                    >
+                      {authorizing
+                        ? "Waiting..."
+                        : "Request Router Authorization"}
+                    </button>
+                  </div>
                 )}
 
               {authorizationStatus && (
@@ -602,6 +650,7 @@ export default function WalletPreflight({
     </div>
   );
 }
+
 
 
 

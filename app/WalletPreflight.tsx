@@ -235,7 +235,7 @@ export default function WalletPreflight({
   function handleAuthorizeRouterPreview() {
     setAuthorizing(true);
     setAuthorizationStatus(
-      "READY TO REQUEST â€” Wallet confirmation will be required. No transaction has been sent."
+      "READY TO REQUEST Ã¢â‚¬â€ Wallet confirmation will be required. No transaction has been sent."
     );
 
     setTimeout(() => {
@@ -263,7 +263,7 @@ export default function WalletPreflight({
 
     if (usdtBalance === null || usdtBalance < requestedAmount) {
       setAuthorizationStatus(
-        "BLOCKED â€” Insufficient USDT balance. No wallet request was sent."
+        "BLOCKED Ã¢â‚¬â€ Insufficient USDT balance. No wallet request was sent."
       );
       return;
     }
@@ -271,7 +271,7 @@ export default function WalletPreflight({
     try {
       setAuthorizing(true);
       setAuthorizationStatus(
-        "WAITING FOR WALLET â€” Review the Permit2 authorization carefully."
+        "WAITING FOR WALLET Ã¢â‚¬â€ Review the Permit2 authorization carefully."
       );
 
       const walletClient = createWalletClient({
@@ -284,7 +284,7 @@ export default function WalletPreflight({
 
       if (chainId !== bsc.id) {
         setAuthorizationStatus(
-          "WRONG NETWORK â€” Switch MetaMask to BNB Smart Chain first."
+          "WRONG NETWORK Ã¢â‚¬â€ Switch MetaMask to BNB Smart Chain first."
         );
         return;
       }
@@ -329,14 +329,38 @@ export default function WalletPreflight({
         return;
       }
 
-      setPermit2State((current) => ({
-        amount: authorizationAmount,
-        expiration,
-        nonce: current?.nonce ?? 0,
-      }));
+      const confirmedAllowance =
+        await publicClient.readContract({
+          address: PANCAKESWAP_PERMIT2,
+          abi: permit2Abi,
+          functionName: "allowance",
+          args: [
+            address,
+            USDT,
+            PANCAKESWAP_UNIVERSAL_ROUTER,
+          ],
+        });
+
+      setPermit2State({
+        amount: confirmedAllowance[0],
+        expiration: Number(confirmedAllowance[1]),
+        nonce: Number(confirmedAllowance[2]),
+      });
+
+      const authorizationVerified =
+        confirmedAllowance[0] >= authorizationAmount &&
+        Number(confirmedAllowance[1]) >
+          Math.floor(Date.now() / 1000);
+
+      if (!authorizationVerified) {
+        setAuthorizationStatus(
+          "AUTHORIZATION CONFIRMED BUT VERIFICATION FAILED - On-chain Permit2 allowance is not sufficient or already expired."
+        );
+        return;
+      }
 
       setAuthorizationStatus(
-        `AUTHORIZATION CONFIRMED - ${hash}`
+        `AUTHORIZATION CONFIRMED AND VERIFIED ON-CHAIN - ${hash}`
       );
     } catch (error) {
       const message =
@@ -345,7 +369,7 @@ export default function WalletPreflight({
           : "Authorization request failed.";
 
       setAuthorizationStatus(
-        `AUTHORIZATION NOT SENT / FAILED â€” ${message}`
+        `AUTHORIZATION NOT SENT / FAILED Ã¢â‚¬â€ ${message}`
       );
     } finally {
       setAuthorizing(false);
@@ -492,7 +516,7 @@ export default function WalletPreflight({
                 }
               >
                 {permit2Expiration}
-                {" Â· "}
+                {" Ã‚Â· "}
                 {permit2NotExpired
                   ? "ACTIVE"
                   : "EXPIRED / NOT AUTHORIZED"}
@@ -573,7 +597,7 @@ export default function WalletPreflight({
             </div>
 
             <div className="text-xs text-emerald-300">
-              READ ONLY Â· No approval, signature, or transaction requested
+              READ ONLY Ã‚Â· No approval, signature, or transaction requested
             </div>
 
             <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">

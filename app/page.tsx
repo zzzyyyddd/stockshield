@@ -1074,10 +1074,25 @@ export default function Home() {
                       />
 
                       <Row
-                        label="Slippage (MVP estimate)"
-                        value={`${selected.slippage.toFixed(
-                          2,
-                        )}%`}
+                        label="Max slippage protection"
+                        value="0.50%"
+                      />
+
+                      <Row
+                        label="Minimum received"
+                        value={
+                          liveQuote?.amountOut
+                            ? `${(
+                                Number(liveQuote.amountOut) *
+                                0.995
+                              ).toFixed(8)} NVDAB`
+                            : "Unavailable"
+                        }
+                      />
+
+                      <Row
+                        label="Execution deadline"
+                        value="20 minutes after wallet confirmation"
                       />
 
                       {liveQuote?.blockNumber && (
@@ -1224,6 +1239,7 @@ function Row({
     </div>
   );
 }
+
 
 
 

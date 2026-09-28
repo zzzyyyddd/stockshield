@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import {
@@ -19,8 +19,8 @@ const USDT =
 const PANCAKESWAP_PERMIT2 =
   "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768" as const;
 
-const PANCAKESWAP_V3_ROUTER =
-  "0x1A0A18AC4BECDDbd6389559687d1A73d8927E416" as const;
+const PANCAKESWAP_UNIVERSAL_ROUTER =
+  "0xd9C500DfF816a1Da21A48A732d3498Bf09dc9AEB" as const;
 
 const erc20Abi = [
   {
@@ -195,7 +195,7 @@ export default function WalletPreflight({
             args: [
               address!,
               USDT,
-              PANCAKESWAP_V3_ROUTER,
+              PANCAKESWAP_UNIVERSAL_ROUTER,
             ],
           }),
         ]);
@@ -302,7 +302,7 @@ export default function WalletPreflight({
         functionName: "approve",
         args: [
           USDT,
-          PANCAKESWAP_V3_ROUTER,
+          PANCAKESWAP_UNIVERSAL_ROUTER,
           authorizationAmount,
           expiration,
         ],
@@ -434,7 +434,7 @@ export default function WalletPreflight({
 
             <div className="border-t border-white/10 pt-4">
               <div className="text-xs font-medium text-zinc-400">
-                Permit2 → PancakeSwap V3 Router
+                Permit2 ? PancakeSwap Universal Router
               </div>
 
               <div className="mt-2 text-xs text-zinc-500">
@@ -511,7 +511,7 @@ export default function WalletPreflight({
                         : "text-xs text-amber-300"
                     }
                   >
-                    ERC-20 → Permit2:{" "}
+                    ERC-20 ? Permit2:{" "}
                     {hasEnoughErc20Allowance
                       ? "SUFFICIENT"
                       : "INSUFFICIENT"}
@@ -524,7 +524,7 @@ export default function WalletPreflight({
                         : "text-xs text-amber-300"
                     }
                   >
-                    Permit2 → Router:{" "}
+                    Permit2 ? Router:{" "}
                     {hasEnoughRouterAllowance
                       ? "AUTHORIZED"
                       : "NOT AUTHORIZED"}
@@ -554,7 +554,7 @@ export default function WalletPreflight({
                 Action required before execution
               </div>
               <div className="mt-1 text-xs text-zinc-400">
-                Wallet needs enough USDT and an active Permit2 → PancakeSwap V3 Router authorization before a real swap can execute.
+                Wallet needs enough USDT and an active Permit2 ? PancakeSwap Universal Router authorization before a real swap can execute.
               </div>
               <div className="mt-2 text-xs text-zinc-500">
                 StockShield will never request a private key. Any approval or swap must be confirmed by you in your wallet.
@@ -595,7 +595,7 @@ export default function WalletPreflight({
                         <div className="flex justify-between gap-4">
                           <span>Spender</span>
                           <span className="text-slate-200">
-                            PancakeSwap V3 Router
+                            PancakeSwap Universal Router
                           </span>
                         </div>
 
@@ -650,6 +650,7 @@ export default function WalletPreflight({
     </div>
   );
 }
+
 
 
 

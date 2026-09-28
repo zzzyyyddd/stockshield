@@ -237,7 +237,7 @@ export default function WalletPreflight({
   function handleAuthorizeRouterPreview() {
     setAuthorizing(true);
     setAuthorizationStatus(
-      "READY TO REQUEST ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Wallet confirmation will be required. No transaction has been sent."
+      "READY TO REQUEST ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Wallet confirmation will be required. No transaction has been sent."
     );
 
     setTimeout(() => {
@@ -265,7 +265,7 @@ export default function WalletPreflight({
 
     if (usdtBalance === null || usdtBalance < requestedAmount) {
       setAuthorizationStatus(
-        "BLOCKED ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Insufficient USDT balance. No wallet request was sent."
+        "BLOCKED ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Insufficient USDT balance. No wallet request was sent."
       );
       return;
     }
@@ -273,7 +273,7 @@ export default function WalletPreflight({
     try {
       setAuthorizing(true);
       setAuthorizationStatus(
-        "WAITING FOR WALLET ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Review the Permit2 authorization carefully."
+        "WAITING FOR WALLET ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Review the Permit2 authorization carefully."
       );
 
       const walletClient = createWalletClient({
@@ -286,7 +286,7 @@ export default function WalletPreflight({
 
       if (chainId !== bsc.id) {
         setAuthorizationStatus(
-          "WRONG NETWORK ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Switch MetaMask to BNB Smart Chain first."
+          "WRONG NETWORK ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Switch MetaMask to BNB Smart Chain first."
         );
         return;
       }
@@ -371,7 +371,7 @@ export default function WalletPreflight({
           : "Authorization request failed.";
 
       setAuthorizationStatus(
-        `AUTHORIZATION NOT SENT / FAILED ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${message}`
+        `AUTHORIZATION NOT SENT / FAILED ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${message}`
       );
     } finally {
       setAuthorizing(false);
@@ -421,6 +421,10 @@ export default function WalletPreflight({
     hasEnoughBalance &&
     hasEnoughErc20Allowance &&
     hasEnoughRouterAllowance;
+
+  useEffect(() => {
+    onReadinessChange?.(fullPreflightReady);
+  }, [fullPreflightReady, onReadinessChange]);
 
   const permit2Expiration =
     permit2State &&
@@ -518,7 +522,7 @@ export default function WalletPreflight({
                 }
               >
                 {permit2Expiration}
-                {" Ãƒâ€šÃ‚Â· "}
+                {" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· "}
                 {permit2NotExpired
                   ? "ACTIVE"
                   : "EXPIRED / NOT AUTHORIZED"}
@@ -599,7 +603,7 @@ export default function WalletPreflight({
             </div>
 
             <div className="text-xs text-emerald-300">
-              READ ONLY Ãƒâ€šÃ‚Â· No approval, signature, or transaction requested
+              READ ONLY ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· No approval, signature, or transaction requested
             </div>
 
             <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">

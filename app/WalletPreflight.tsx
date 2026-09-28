@@ -303,6 +303,24 @@ export default function WalletPreflight({
         return;
       }
 
+      const gasClient = createPublicClient({
+        chain: bsc,
+        transport: http(RPC),
+      });
+
+      const bnbBalance = await gasClient.getBalance({
+        address,
+      });
+
+      const minimumGasBalance = parseUnits("0.00005", 18);
+
+      if (bnbBalance < minimumGasBalance) {
+        setAuthorizationStatus(
+          "INSUFFICIENT GAS - Add a small amount of BNB for network fees before requesting authorization."
+        );
+        return;
+      }
+
       const authorizationAmount = parseUnits(
         tradeAmount.toString(),
         18,

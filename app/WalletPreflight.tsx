@@ -235,7 +235,7 @@ export default function WalletPreflight({
   function handleAuthorizeRouterPreview() {
     setAuthorizing(true);
     setAuthorizationStatus(
-      "READY TO REQUEST — Wallet confirmation will be required. No transaction has been sent."
+      "READY TO REQUEST â€” Wallet confirmation will be required. No transaction has been sent."
     );
 
     setTimeout(() => {
@@ -263,7 +263,7 @@ export default function WalletPreflight({
 
     if (usdtBalance === null || usdtBalance < requestedAmount) {
       setAuthorizationStatus(
-        "BLOCKED — Insufficient USDT balance. No wallet request was sent."
+        "BLOCKED â€” Insufficient USDT balance. No wallet request was sent."
       );
       return;
     }
@@ -271,7 +271,7 @@ export default function WalletPreflight({
     try {
       setAuthorizing(true);
       setAuthorizationStatus(
-        "WAITING FOR WALLET — Review the Permit2 authorization carefully."
+        "WAITING FOR WALLET â€” Review the Permit2 authorization carefully."
       );
 
       const walletClient = createWalletClient({
@@ -284,7 +284,7 @@ export default function WalletPreflight({
 
       if (chainId !== bsc.id) {
         setAuthorizationStatus(
-          "WRONG NETWORK — Switch MetaMask to BNB Smart Chain first."
+          "WRONG NETWORK â€” Switch MetaMask to BNB Smart Chain first."
         );
         return;
       }
@@ -309,7 +309,34 @@ export default function WalletPreflight({
       });
 
       setAuthorizationStatus(
-        `AUTHORIZATION SUBMITTED — ${hash}`
+        `AUTHORIZATION SUBMITTED - Waiting for on-chain confirmation: ${hash}`
+      );
+
+      const publicClient = createPublicClient({
+        chain: bsc,
+        transport: http(RPC),
+      });
+
+      const receipt =
+        await publicClient.waitForTransactionReceipt({
+          hash,
+        });
+
+      if (receipt.status !== "success") {
+        setAuthorizationStatus(
+          "AUTHORIZATION FAILED - Transaction was not successful on-chain."
+        );
+        return;
+      }
+
+      setPermit2State((current) => ({
+        amount: authorizationAmount,
+        expiration,
+        nonce: current?.nonce ?? 0,
+      }));
+
+      setAuthorizationStatus(
+        `AUTHORIZATION CONFIRMED - ${hash}`
       );
     } catch (error) {
       const message =
@@ -318,7 +345,7 @@ export default function WalletPreflight({
           : "Authorization request failed.";
 
       setAuthorizationStatus(
-        `AUTHORIZATION NOT SENT / FAILED — ${message}`
+        `AUTHORIZATION NOT SENT / FAILED â€” ${message}`
       );
     } finally {
       setAuthorizing(false);
@@ -465,7 +492,7 @@ export default function WalletPreflight({
                 }
               >
                 {permit2Expiration}
-                {" · "}
+                {" Â· "}
                 {permit2NotExpired
                   ? "ACTIVE"
                   : "EXPIRED / NOT AUTHORIZED"}
@@ -546,7 +573,7 @@ export default function WalletPreflight({
             </div>
 
             <div className="text-xs text-emerald-300">
-              READ ONLY · No approval, signature, or transaction requested
+              READ ONLY Â· No approval, signature, or transaction requested
             </div>
 
             <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">

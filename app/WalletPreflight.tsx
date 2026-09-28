@@ -5,6 +5,7 @@ import {
   createPublicClient,
   formatUnits,
   http,
+  parseUnits,
 } from "viem";
 import { bsc } from "viem/chains";
 
@@ -13,9 +14,11 @@ const RPC = "https://1rpc.io/bnb";
 const USDT =
   "0x55d398326f99059fF775485246999027B3197955" as const;
 
-// PancakeSwap Permit2 — BSC Mainnet
 const PANCAKESWAP_PERMIT2 =
   "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768" as const;
+
+const PANCAKESWAP_V3_ROUTER =
+  "0x1A0A18AC4BECDDbd6389559687d1A73d8927E416" as const;
 
 const erc20Abi = [
   {
@@ -58,9 +61,51 @@ const erc20Abi = [
   },
 ] as const;
 
+const permit2Abi = [
+  {
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [
+      {
+        name: "user",
+        type: "address",
+      },
+      {
+        name: "token",
+        type: "address",
+      },
+      {
+        name: "spender",
+        type: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "amount",
+        type: "uint160",
+      },
+      {
+        name: "expiration",
+        type: "uint48",
+      },
+      {
+        name: "nonce",
+        type: "uint48",
+      },
+    ],
+  },
+] as const;
+
 type Props = {
   address: `0x${string}` | null;
   tradeAmount: number;
+};
+
+type Permit2State = {
+  amount: bigint;
+  expiration: number;
+  nonce: number;
 };
 
 export default function WalletPreflight({
@@ -68,10 +113,13 @@ export default function WalletPreflight({
   tradeAmount,
 }: Props) {
   const [usdtBalance, setUsdtBalance] =
-    useState<string | null>(null);
+    useState<bigint | null>(null);
 
-  const [permit2Allowance, setPermit2Allowance] =
-    useState<string | null>(null);
+  const [erc20Allowance, setErc20Allowance] =
+    useState<bigint | null>(null);
+
+  const [permit2State, setPermit2State] =
+    useState<Permit2State | null>(null);
 
   const [loading, setLoading] =
     useState(false);
@@ -82,7 +130,8 @@ export default function WalletPreflight({
   useEffect(() => {
     if (!address) {
       setUsdtBalance(null);
-      setPermit2Allowance(null);
+      setErc20Allowance(null);
+      setPermit2State(null);
       setError(null);
       return;
     }
@@ -99,35 +148,50 @@ export default function WalletPreflight({
           transport: http(RPC),
         });
 
-        const [balance, allowance] =
-          await Promise.all([
-            client.readContract({
-              address: USDT,
-              abi: erc20Abi,
-              functionName: "balanceOf",
-              args: [address!],
-            }),
+        const [
+          balance,
+          allowanceToPermit2,
+          routerAllowance,
+        ] = await Promise.all([
+          client.readContract({
+            address: USDT,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [address!],
+          }),
 
-            client.readContract({
-              address: USDT,
-              abi: erc20Abi,
-              functionName: "allowance",
-              args: [
-                address!,
-                PANCAKESWAP_PERMIT2,
-              ],
-            }),
-          ]);
+          client.readContract({
+            address: USDT,
+            abi: erc20Abi,
+            functionName: "allowance",
+            args: [
+              address!,
+              PANCAKESWAP_PERMIT2,
+            ],
+          }),
+
+          client.readContract({
+            address: PANCAKESWAP_PERMIT2,
+            abi: permit2Abi,
+            functionName: "allowance",
+            args: [
+              address!,
+              USDT,
+              PANCAKESWAP_V3_ROUTER,
+            ],
+          }),
+        ]);
 
         if (!active) return;
 
-        setUsdtBalance(
-          formatUnits(balance, 18),
-        );
+        setUsdtBalance(balance);
+        setErc20Allowance(allowanceToPermit2);
 
-        setPermit2Allowance(
-          formatUnits(allowance, 18),
-        );
+        setPermit2State({
+          amount: routerAllowance[0],
+          expiration: Number(routerAllowance[1]),
+          nonce: Number(routerAllowance[2]),
+        });
       } catch (err) {
         if (!active) return;
 
@@ -150,33 +214,58 @@ export default function WalletPreflight({
     };
   }, [address]);
 
-  const balanceNumber =
-    usdtBalance !== null
-      ? Number(usdtBalance)
-      : null;
-
-  const allowanceNumber =
-    permit2Allowance !== null
-      ? Number(permit2Allowance)
-      : null;
-
   const validTradeAmount =
     Number.isFinite(tradeAmount) &&
     tradeAmount > 0;
 
+  let requiredAmount = BigInt(0);
+
+  if (validTradeAmount) {
+    try {
+      requiredAmount = parseUnits(
+        tradeAmount.toString(),
+        18,
+      );
+    } catch {
+      requiredAmount = BigInt(0);
+    }
+  }
+
   const hasEnoughBalance =
     validTradeAmount &&
-    balanceNumber !== null &&
-    balanceNumber >= tradeAmount;
+    usdtBalance !== null &&
+    usdtBalance >= requiredAmount;
 
-  const hasEnoughAllowance =
+  const hasEnoughErc20Allowance =
     validTradeAmount &&
-    allowanceNumber !== null &&
-    allowanceNumber >= tradeAmount;
+    erc20Allowance !== null &&
+    erc20Allowance >= requiredAmount;
 
-  const erc20PreflightReady =
+  const nowSeconds =
+    Math.floor(Date.now() / 1000);
+
+  const permit2NotExpired =
+    permit2State !== null &&
+    permit2State.expiration > nowSeconds;
+
+  const hasEnoughRouterAllowance =
+    validTradeAmount &&
+    permit2State !== null &&
+    permit2State.amount >= requiredAmount &&
+    permit2NotExpired;
+
+  const fullPreflightReady =
     hasEnoughBalance &&
-    hasEnoughAllowance;
+    hasEnoughErc20Allowance &&
+    hasEnoughRouterAllowance;
+
+  const permit2Expiration =
+    permit2State &&
+    permit2State.expiration > 0
+      ? new Date(
+          permit2State.expiration * 1000,
+        ).toLocaleString()
+      : "Not authorized";
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
@@ -192,14 +281,15 @@ export default function WalletPreflight({
 
       {address && loading && (
         <div className="mt-3 text-sm text-zinc-400">
-          Reading wallet state...
+          Reading wallet and Permit2 state...
         </div>
       )}
 
       {address &&
         !loading &&
         usdtBalance !== null &&
-        permit2Allowance !== null && (
+        erc20Allowance !== null &&
+        permit2State !== null && (
           <div className="mt-3 space-y-4">
             <div>
               <div className="text-xs text-zinc-500">
@@ -207,7 +297,10 @@ export default function WalletPreflight({
               </div>
 
               <div className="mt-1 font-semibold text-white">
-                {Number(usdtBalance).toFixed(6)} USDT
+                {Number(
+                  formatUnits(usdtBalance, 18),
+                ).toFixed(6)}{" "}
+                USDT
               </div>
             </div>
 
@@ -217,10 +310,59 @@ export default function WalletPreflight({
               </div>
 
               <div className="mt-1 font-semibold text-white">
-                {allowanceNumber !== null &&
-                allowanceNumber > 1_000_000
+                {erc20Allowance >
+                parseUnits("1000000", 18)
                   ? "Large existing allowance"
-                  : `${Number(permit2Allowance).toFixed(6)} USDT`}
+                  : `${Number(
+                      formatUnits(
+                        erc20Allowance,
+                        18,
+                      ),
+                    ).toFixed(6)} USDT`}
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-4">
+              <div className="text-xs font-medium text-zinc-400">
+                Permit2 → PancakeSwap V3 Router
+              </div>
+
+              <div className="mt-2 text-xs text-zinc-500">
+                Router allowance
+              </div>
+
+              <div className="mt-1 text-sm font-semibold text-white">
+                {permit2State.amount >
+                parseUnits("1000000", 18)
+                  ? "Large existing allowance"
+                  : `${Number(
+                      formatUnits(
+                        permit2State.amount,
+                        18,
+                      ),
+                    ).toFixed(6)} USDT`}
+              </div>
+
+              <div className="mt-2 text-xs text-zinc-500">
+                Authorization expiration
+              </div>
+
+              <div
+                className={
+                  permit2NotExpired
+                    ? "mt-1 text-xs text-emerald-300"
+                    : "mt-1 text-xs text-amber-300"
+                }
+              >
+                {permit2Expiration}
+                {" · "}
+                {permit2NotExpired
+                  ? "ACTIVE"
+                  : "EXPIRED / NOT AUTHORIZED"}
+              </div>
+
+              <div className="mt-2 text-xs text-zinc-600">
+                Permit2 nonce: {permit2State.nonce}
               </div>
             </div>
 
@@ -254,34 +396,43 @@ export default function WalletPreflight({
 
                   <div
                     className={
-                      hasEnoughAllowance
+                      hasEnoughErc20Allowance
                         ? "text-xs text-emerald-300"
                         : "text-xs text-amber-300"
                     }
                   >
-                    Permit2 allowance:{" "}
-                    {hasEnoughAllowance
+                    ERC-20 → Permit2:{" "}
+                    {hasEnoughErc20Allowance
                       ? "SUFFICIENT"
                       : "INSUFFICIENT"}
                   </div>
 
                   <div
                     className={
-                      erc20PreflightReady
+                      hasEnoughRouterAllowance
+                        ? "text-xs text-emerald-300"
+                        : "text-xs text-amber-300"
+                    }
+                  >
+                    Permit2 → Router:{" "}
+                    {hasEnoughRouterAllowance
+                      ? "AUTHORIZED"
+                      : "NOT AUTHORIZED"}
+                  </div>
+
+                  <div
+                    className={
+                      fullPreflightReady
                         ? "text-sm font-semibold text-emerald-300"
                         : "text-sm font-semibold text-amber-300"
                     }
                   >
-                    {erc20PreflightReady
-                      ? "ERC-20 PREFLIGHT READY"
-                      : "ERC-20 PREFLIGHT NOT READY"}
+                    {fullPreflightReady
+                      ? "FULL PREFLIGHT READY"
+                      : "FULL PREFLIGHT NOT READY"}
                   </div>
                 </div>
               )}
-
-              <div className="mt-3 text-xs text-zinc-500">
-                Permit2 router authorization is checked separately.
-              </div>
             </div>
 
             <div className="text-xs text-emerald-300">

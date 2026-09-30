@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   createPublicClient,
   http,
@@ -7,7 +7,7 @@ import {
 } from "viem";
 import { bsc } from "viem/chains";
 
-const RPC = "https://1rpc.io/bnb";
+const RPC = "https://bsc-dataseed.bnbchain.org";
 
 const QUOTER =
   "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997" as const;

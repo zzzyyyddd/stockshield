@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createPublicClient,
   http,
+  fallback,
   parseUnits,
   formatUnits,
 } from "viem";
 import { bsc } from "viem/chains";
 
-const RPC = "https://bsc-dataseed.bnbchain.org";
+const RPCS = [
+  "https://bsc-dataseed.bnbchain.org",
+  "https://bsc-dataseed1.bnbchain.org",
+  "https://bsc-dataseed2.bnbchain.org",
+] as const;
 
 const QUOTER =
   "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997" as const;
@@ -169,7 +174,7 @@ export async function GET(
     const client =
       createPublicClient({
         chain: bsc,
-        transport: http(RPC),
+        transport: fallback(RPCS.map((rpc) => http(rpc))),
       });
 
     /*

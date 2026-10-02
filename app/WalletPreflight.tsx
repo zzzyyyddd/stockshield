@@ -7,11 +7,16 @@ import {
   custom,
   formatUnits,
   http,
+  fallback,
   parseUnits,
 } from "viem";
 import { bsc } from "viem/chains";
 
-const RPC = "https://1rpc.io/bnb";
+const RPCS = [
+  "https://bsc-dataseed.bnbchain.org",
+  "https://bsc-dataseed1.bnbchain.org",
+  "https://bsc-dataseed2.bnbchain.org",
+] as const;
 
 const USDT =
   "0x55d398326f99059fF775485246999027B3197955" as const;
@@ -165,7 +170,7 @@ export default function WalletPreflight({
 
         const client = createPublicClient({
           chain: bsc,
-          transport: http(RPC),
+          transport: fallback(RPCS.map((rpc) => http(rpc))),
         });
 
         const [
@@ -305,7 +310,7 @@ export default function WalletPreflight({
 
       const gasClient = createPublicClient({
         chain: bsc,
-        transport: http(RPC),
+        transport: fallback(RPCS.map((rpc) => http(rpc))),
       });
 
       const bnbBalance = await gasClient.getBalance({
@@ -346,7 +351,7 @@ export default function WalletPreflight({
 
       const publicClient = createPublicClient({
         chain: bsc,
-        transport: http(RPC),
+        transport: fallback(RPCS.map((rpc) => http(rpc))),
       });
 
       const receipt =
@@ -737,15 +742,4 @@ export default function WalletPreflight({
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
 

@@ -3,6 +3,7 @@ import {
   createPublicClient,
   formatUnits,
   http,
+  fallback,
   parseUnits,
 } from "viem";
 import { bsc } from "viem/chains";
@@ -15,7 +16,11 @@ import { Percent } from "@pancakeswap/swap-sdk-core";
 import { PoolType, SmartRouter, type V3Pool } from "@pancakeswap/smart-router";
 import { PancakeSwapUniversalRouter } from "@pancakeswap/universal-router-sdk";
 
-const RPC_URL = "https://1rpc.io/bnb";
+const RPCS = [
+  "https://bsc-dataseed.bnbchain.org",
+  "https://bsc-dataseed1.bnbchain.org",
+  "https://bsc-dataseed2.bnbchain.org",
+] as const;
 
 const USDT_ADDRESS =
   "0x55d398326f99059fF775485246999027B3197955" as const;
@@ -87,7 +92,7 @@ const quoterAbi = [
 
 const client = createPublicClient({
   chain: bsc,
-  transport: http(RPC_URL),
+  transport: fallback(RPCS.map((rpc) => http(rpc))),
 });
 
 export async function GET(request: NextRequest) {
@@ -443,9 +448,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
 
